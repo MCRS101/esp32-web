@@ -1564,148 +1564,65 @@ function formatDateTime(
     return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 
 }
-
-/* =====================================================
-   EXPORT PDF BY DATE
-===================================================== */
-
 function exportPDFByDate() {
 
     if (!DEVICE_ID) {
-
         alert("ไม่พบ ESP32");
-
         return;
-
     }
-
 
     const date =
-        document.getElementById(
-            "exportDate"
-        ).value;
-
+        document.getElementById("exportDate").value;
 
     if (!date) {
-
         alert("กรุณาเลือกวันที่");
-
         return;
-
     }
 
-
     const url =
-        `/api/device/${encodeURIComponent(
-            DEVICE_ID
-        )}/export/pdf?date=${encodeURIComponent(
-            date
-        )}`;
+        `/api/device/${encodeURIComponent(DEVICE_ID)}/export/pdf?date=${encodeURIComponent(date)}`;
 
-
-    window.open(
-        url,
-        "_blank"
-    );
-
+    window.location.href = url;
 }
-
-
-/* =====================================================
-   EXPORT EXCEL BY DATE
-===================================================== */
-
 function exportExcelByDate() {
 
     if (!DEVICE_ID) {
-
         alert("ไม่พบ ESP32");
-
         return;
-
     }
-
 
     const date =
-        document.getElementById(
-            "exportDate"
-        ).value;
-
+        document.getElementById("exportDate").value;
 
     if (!date) {
-
         alert("กรุณาเลือกวันที่");
-
         return;
-
     }
 
-
     const url =
-        `/api/device/${encodeURIComponent(
-            DEVICE_ID
-        )}/export/excel?date=${encodeURIComponent(
-            date
-        )}`;
+        `/api/device/${encodeURIComponent(DEVICE_ID)}/export/excel?date=${encodeURIComponent(date)}`;
 
-
-    window.location.href =
-        url;
-
+    window.location.href = url;
 }
-
-
-/* =====================================================
-   EXPORT ALL PDF
-===================================================== */
-
 function exportAllPDF() {
 
     if (!DEVICE_ID) {
-
         alert("ไม่พบ ESP32");
-
         return;
-
     }
 
-
-    const url =
-        `/api/device/${encodeURIComponent(
-            DEVICE_ID
-        )}/export/pdf`;
-
-
-    window.open(
-        url,
-        "_blank"
-    );
-
+    window.location.href =
+        `/api/device/${encodeURIComponent(DEVICE_ID)}/export/pdf`;
 }
 
-
-/* =====================================================
-   EXPORT ALL EXCEL
-===================================================== */
 
 function exportAllExcel() {
 
     if (!DEVICE_ID) {
-
         alert("ไม่พบ ESP32");
-
         return;
-
     }
 
-
-    const url =
-        `/api/device/${encodeURIComponent(
-            DEVICE_ID
-        )}/export/excel`;
-
-
     window.location.href =
-        url;
-
+        `/api/device/${encodeURIComponent(DEVICE_ID)}/export/excel`;
 }

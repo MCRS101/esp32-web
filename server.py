@@ -1,6 +1,8 @@
 import os
 import secrets
 
+from io import BytesIO
+
 from flask import (
     Flask,
     request,
@@ -11,11 +13,8 @@ from flask import (
 
 from database import get_connection, init_database
 
-from io import BytesIO
-from datetime import datetime
-
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill
+from openpyxl.styles import Font, Alignment
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
@@ -29,13 +28,27 @@ from reportlab.platypus import (
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.enums import TA_CENTER
 
+# =========================================================
+# FLASK
+# =========================================================
+
 app = Flask(__name__)
 
+
 # =========================================================
-# INIT DATABASE
+# INITIALIZE DATABASE
 # =========================================================
 
-init_database()
+try:
+
+    init_database()
+
+except Exception as e:
+
+    print("====================================")
+    print("MYSQL DATABASE ERROR")
+    print(e)
+    print("====================================")
 
 
 # =========================================================
@@ -44,6 +57,7 @@ init_database()
 
 @app.route("/")
 def index():
+
     return render_template("index.html")
 
 
@@ -54,76 +68,153 @@ def index():
 @app.route("/api/device/register", methods=["POST"])
 def register_device():
 
-    data = request.get_json()
+    data = request.get_json(silent=True)
 
     if not data:
+
         return jsonify({
             "success": False,
-            "message": "No JSON data"
+            "message": "Invalid JSON"
         }), 400
+
 
     device_id = data.get("device_id")
-    device_token = data.get("device_token", "")
 
     if not device_id:
+
         return jsonify({
             "success": False,
-            "message": "device_id required"
+            "message": "device_id is required"
         }), 400
 
-    conn = None
-    cursor = None
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
 
     try:
 
-        conn = get_connection()
-        cursor = conn.cursor()
+        # -----------------------------------------
+        # ตรวจสอบ Device
+        # -----------------------------------------
 
-        cursor.execute("""
+        cursor.execute(
+            """
+            SELECT *
+            FROM devices
+            WHERE device_id = %s
+            """,
+            (device_id,)
+        )
+
+        device = cursor.fetchone()
+
+
+        # -----------------------------------------
+        # Device มีอยู่แล้ว
+        # -----------------------------------------
+
+        if device:
+
+            cursor.execute(
+                """
+                UPDATE devices
+
+                SET status = 'online',
+
+                    ip_address = %s,
+
+                    last_seen = CURRENT_TIMESTAMP
+
+                WHERE device_id = %s
+                """,
+                (
+                    request.remote_addr,
+                    device_id
+                )
+            )
+
+            conn.commit()
+
+
+            return jsonify({
+                "success": True,
+                "message": "Device already registered",
+                "device_id": device_id
+            })
+
+
+        # -----------------------------------------
+        # Device ใหม่
+        # -----------------------------------------
+
+        device_token = secrets.token_hex(32)
+
+
+        cursor.execute(
+            """
             INSERT INTO devices
             (
                 device_id,
                 device_token,
                 status,
+                ip_address,
                 last_seen
             )
-            VALUES (%s, %s, 'online', CURRENT_TIMESTAMP)
-            ON DUPLICATE KEY UPDATE
-                device_token = VALUES(device_token),
-                status = 'online',
-                last_seen = CURRENT_TIMESTAMP
-        """, (
-            device_id,
-            device_token
-        ))
+
+            VALUES
+            (
+                %s,
+                %s,
+                'online',
+                %s,
+                CURRENT_TIMESTAMP
+            )
+            """,
+            (
+                device_id,
+                device_token,
+                request.remote_addr
+            )
+        )
+
 
         conn.commit()
 
+
         return jsonify({
+
             "success": True,
+
             "message": "Device registered",
-            "device_id": device_id
+
+            "device_id": device_id,
+
+            "device_token": device_token
+
         })
+
 
     except Exception as e:
 
-        if conn:
-            conn.rollback()
+        conn.rollback()
 
         print("REGISTER ERROR:", e)
 
+
         return jsonify({
+
             "success": False,
-            "message": str(e)
+
+            "message": "Database error"
+
         }), 500
+
 
     finally:
 
-        if cursor:
-            cursor.close()
-
-        if conn:
-            conn.close()
+        cursor.close()
+        conn.close()
 
 
 # =========================================================
@@ -133,204 +224,250 @@ def register_device():
 @app.route("/api/device/data", methods=["POST"])
 def receive_sensor_data():
 
-    data = request.get_json()
+    data = request.get_json(silent=True)
+
 
     if not data:
+
         return jsonify({
+
             "success": False,
-            "message": "No JSON data"
+
+            "message": "Invalid JSON"
+
         }), 400
+
 
     device_id = data.get("device_id")
 
+
     if not device_id:
+
         return jsonify({
+
             "success": False,
-            "message": "device_id required"
+
+            "message": "device_id is required"
+
         }), 400
+
+
+    # =====================================================
+    # SENSOR VALUES
+    # =====================================================
 
     try:
 
-        accel_x = float(data.get("accel_x", 0))
-        accel_y = float(data.get("accel_y", 0))
-        accel_z = float(data.get("accel_z", 0))
+        accel_x = float(
+            data.get("accel_x", 0)
+        )
 
-        pga = float(data.get("pga", 0))
-        peak_pga = float(data.get("peak_pga", 0))
-        avg_pga = float(data.get("avg_pga", 0))
+        accel_y = float(
+            data.get("accel_y", 0)
+        )
 
-        pendulum = float(data.get("pendulum", 0))
+        accel_z = float(
+            data.get("accel_z", 0)
+        )
 
-        level = data.get("level", "LOW")
-        direction = data.get("direction", "-")
+
+        pga = float(
+            data.get("pga", 0)
+        )
+
+        peak_pga = float(
+            data.get("peak_pga", 0)
+        )
+
+        avg_pga = float(
+            data.get("avg_pga", 0)
+        )
+
+
+        pendulum = float(
+            data.get("pendulum", 0)
+        )
+
+
+        level = data.get(
+            "level",
+            "LOW"
+        )
+
+
+        direction = data.get(
+            "direction",
+            "-"
+        )
+
 
         estimated_ml = float(
-            data.get("estimated_ml", 0)
+            data.get(
+                "estimated_ml",
+                0
+            )
         )
+
 
     except (ValueError, TypeError):
 
         return jsonify({
+
             "success": False,
+
             "message": "Invalid sensor data"
+
         }), 400
 
 
-    conn = None
-    cursor = None
+    # =====================================================
+    # MYSQL
+    # =====================================================
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
 
     try:
 
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        # -------------------------------------------------
+        # -----------------------------------------
         # INSERT SENSOR DATA
-        # -------------------------------------------------
+        # -----------------------------------------
 
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO sensor_data
             (
                 device_id,
+
                 accel_x,
                 accel_y,
                 accel_z,
+
                 pga,
                 peak_pga,
                 avg_pga,
+
                 pendulum,
+
                 level,
+
                 direction,
+
                 estimated_ml
             )
+
             VALUES
             (
-                %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, %s
+                %s,
+
+                %s,
+                %s,
+                %s,
+
+                %s,
+                %s,
+                %s,
+
+                %s,
+
+                %s,
+
+                %s,
+
+                %s
             )
-        """, (
-            device_id,
-            accel_x,
-            accel_y,
-            accel_z,
-            pga,
-            peak_pga,
-            avg_pga,
-            pendulum,
-            level,
-            direction,
-            estimated_ml
-        ))
+            """,
+            (
+                device_id,
+
+                accel_x,
+                accel_y,
+                accel_z,
+
+                pga,
+                peak_pga,
+                avg_pga,
+
+                pendulum,
+
+                level,
+
+                direction,
+
+                estimated_ml
+            )
+        )
 
 
-        # -------------------------------------------------
-        # UPDATE DEVICE STATUS
-        # -------------------------------------------------
+        # -----------------------------------------
+        # UPDATE DEVICE
+        # -----------------------------------------
 
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE devices
-            SET
-                status = 'online',
+
+            SET status = 'online',
+
+                ip_address = %s,
+
                 last_seen = CURRENT_TIMESTAMP
+
             WHERE device_id = %s
-        """, (
-            device_id,
-        ))
+            """,
+            (
+                request.remote_addr,
+                device_id
+            )
+        )
 
 
         conn.commit()
 
+
+        # -----------------------------------------
+        # RESPONSE
+        # -----------------------------------------
+
         return jsonify({
+
             "success": True,
-            "message": "Sensor data saved"
+
+            "message": "Sensor data received",
+
+            "alert": level in [
+                "HIGH",
+                "SEVERE"
+            ]
+
         })
 
 
     except Exception as e:
 
-        if conn:
-            conn.rollback()
+        conn.rollback()
 
-        print("SENSOR DATA ERROR:", e)
+        print("SENSOR DATABASE ERROR:", e)
+
 
         return jsonify({
+
             "success": False,
-            "message": str(e)
+
+            "message": "Database error"
+
         }), 500
 
 
     finally:
 
-        if cursor:
-            cursor.close()
-
-        if conn:
-            conn.close()
+        cursor.close()
+        conn.close()
 
 
 # =========================================================
-# GET DEVICES
-# =========================================================
-
-@app.route("/api/devices", methods=["GET"])
-def get_devices():
-
-    conn = None
-    cursor = None
-
-    try:
-
-        conn = get_connection()
-
-        cursor = conn.cursor(
-            dictionary=True
-        )
-
-        cursor.execute("""
-            SELECT
-                device_id,
-                status,
-                ip_address,
-                last_seen
-            FROM devices
-            ORDER BY id DESC
-        """)
-
-        devices = cursor.fetchall()
-
-        for device in devices:
-
-            if device["last_seen"]:
-                device["last_seen"] = \
-                    device["last_seen"].isoformat()
-
-        return jsonify({
-            "success": True,
-            "devices": devices
-        })
-
-
-    except Exception as e:
-
-        print("GET DEVICES ERROR:", e)
-
-        return jsonify({
-            "success": False,
-            "message": str(e)
-        }), 500
-
-
-    finally:
-
-        if cursor:
-            cursor.close()
-
-        if conn:
-            conn.close()
-
-
-# =========================================================
-# GET LATEST
+# GET LATEST SENSOR DATA
 # =========================================================
 
 @app.route(
@@ -339,82 +476,62 @@ def get_devices():
 )
 def get_latest(device_id):
 
-    conn = None
-    cursor = None
+    conn = get_connection()
+
+    cursor = conn.cursor(
+        dictionary=True
+    )
+
 
     try:
 
-        conn = get_connection()
+        cursor.execute(
+            """
+            SELECT *
 
-        cursor = conn.cursor(
-            dictionary=True
+            FROM sensor_data
+
+            WHERE device_id = %s
+
+            ORDER BY id DESC
+
+            LIMIT 1
+            """,
+            (device_id,)
         )
 
-        cursor.execute("""
-            SELECT
-                id,
-                device_id,
-                timestamp,
-                accel_x,
-                accel_y,
-                accel_z,
-                pga,
-                peak_pga,
-                avg_pga,
-                pendulum,
-                level,
-                direction,
-                estimated_ml
-            FROM sensor_data
-            WHERE device_id = %s
-            ORDER BY id DESC
-            LIMIT 1
-        """, (
-            device_id,
-        ))
 
-        data = cursor.fetchone()
+        row = cursor.fetchone()
 
-        if not data:
+
+        if not row:
 
             return jsonify({
+
                 "success": False,
-                "message": "No sensor data"
+
+                "message": "No data"
+
             }), 404
 
 
-        if data["timestamp"]:
-            data["timestamp"] = \
-                data["timestamp"].isoformat()
-
-
         return jsonify({
+
             "success": True,
-            "data": data
+
+            "data": row
+
         })
-
-
-    except Exception as e:
-
-        print("LATEST ERROR:", e)
-
-        return jsonify({
-            "success": False,
-            "message": str(e)
-        }), 500
 
 
     finally:
 
-        if cursor:
-            cursor.close()
-
-        if conn:
-            conn.close()
+        cursor.close()
+        conn.close()
 
 
 # =========================================================
-# GET HISTORY
+# GET SENSOR HISTORY
 # =========================================================
 
 @app.route(
@@ -423,18 +540,16 @@ def get_latest(device_id):
 )
 def get_history(device_id):
 
-    conn = None
-    cursor = None
+    conn = get_connection()
+
+    cursor = conn.cursor(
+        dictionary=True
+    )
 
     try:
 
-        conn = get_connection()
-
-        cursor = conn.cursor(
-            dictionary=True
-        )
-
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT
                 id,
                 device_id,
@@ -449,27 +564,42 @@ def get_history(device_id):
                 level,
                 direction,
                 estimated_ml
+
             FROM sensor_data
+
             WHERE device_id = %s
-            ORDER BY timestamp DESC
-        """, (
-            device_id,
-        ))
+
+            ORDER BY id DESC
+            """,
+            (
+                device_id,
+            )
+        )
 
         rows = cursor.fetchall()
 
 
+        # -----------------------------------------
+        # แปลงวันที่ให้ JavaScript อ่านง่าย
+        # -----------------------------------------
+
         for row in rows:
 
-            if row["timestamp"]:
-                row["timestamp"] = \
+            if row.get("timestamp"):
+
+                row["timestamp"] = (
                     row["timestamp"].isoformat()
+                )
 
 
         return jsonify({
+
             "success": True,
+
             "count": len(rows),
+
             "data": rows
+
         })
 
 
@@ -478,111 +608,19 @@ def get_history(device_id):
         print("HISTORY ERROR:", e)
 
         return jsonify({
+
             "success": False,
-            "message": str(e)
+
+            "message": "Database error"
+
         }), 500
 
 
     finally:
 
-        if cursor:
-            cursor.close()
-
-        if conn:
-            conn.close()
-
-
-# =========================================================
-# GET DATA BY DATE
-# =========================================================
-
-@app.route(
-    "/api/device/<device_id>/history/date",
-    methods=["GET"]
-)
-def get_history_by_date(device_id):
-
-    date_value = request.args.get("date")
-
-    if not date_value:
-
-        return jsonify({
-            "success": False,
-            "message": "date required"
-        }), 400
-
-
-    conn = None
-    cursor = None
-
-    try:
-
-        conn = get_connection()
-
-        cursor = conn.cursor(
-            dictionary=True
-        )
-
-        cursor.execute("""
-            SELECT
-                id,
-                device_id,
-                timestamp,
-                accel_x,
-                accel_y,
-                accel_z,
-                pga,
-                peak_pga,
-                avg_pga,
-                pendulum,
-                level,
-                direction,
-                estimated_ml
-            FROM sensor_data
-            WHERE device_id = %s
-            AND DATE(timestamp) = %s
-            ORDER BY timestamp DESC
-        """, (
-            device_id,
-            date_value
-        ))
-
-        rows = cursor.fetchall()
-
-
-        for row in rows:
-
-            if row["timestamp"]:
-                row["timestamp"] = \
-                    row["timestamp"].isoformat()
-
-
-        return jsonify({
-            "success": True,
-            "count": len(rows),
-            "data": rows
-        })
-
-
-    except Exception as e:
-
-        print("DATE HISTORY ERROR:", e)
-
-        return jsonify({
-            "success": False,
-            "message": str(e)
-        }), 500
-
-
-    finally:
-
-        if cursor:
-            cursor.close()
-
-        if conn:
-            conn.close()
-
-
+        cursor.close()
+        conn.close()
+        
 # =========================================================
 # EXPORT EXCEL
 # =========================================================
@@ -593,28 +631,31 @@ def get_history_by_date(device_id):
 )
 def export_excel(device_id):
 
+    # -----------------------------------------
+    # รับวันที่
+    # เช่น 2026-10-05
+    # -----------------------------------------
+
     date_value = request.args.get("date")
 
-    conn = None
-    cursor = None
+
+    conn = get_connection()
+
+    cursor = conn.cursor(
+        dictionary=True
+    )
+
 
     try:
 
-        conn = get_connection()
-
-        cursor = conn.cursor(
-            dictionary=True
-        )
-
-
-        # -------------------------------------------------
-        # ถ้ามีวันที่ → เอาเฉพาะวันนั้น
-        # ถ้าไม่มีวันที่ → เอาทั้งหมด
-        # -------------------------------------------------
+        # -----------------------------------------
+        # ถ้ามีวันที่
+        # -----------------------------------------
 
         if date_value:
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT
                     timestamp,
                     accel_x,
@@ -627,18 +668,31 @@ def export_excel(device_id):
                     level,
                     direction,
                     estimated_ml
+
                 FROM sensor_data
+
                 WHERE device_id = %s
+
                 AND DATE(timestamp) = %s
+
                 ORDER BY timestamp ASC
-            """, (
-                device_id,
-                date_value
-            ))
+                """,
+                (
+                    device_id,
+                    date_value
+                )
+            )
+
+
+        # -----------------------------------------
+        # ถ้าไม่มีวันที่
+        # = เอาทั้งหมด
+        # -----------------------------------------
 
         else:
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT
                     timestamp,
                     accel_x,
@@ -651,47 +705,72 @@ def export_excel(device_id):
                     level,
                     direction,
                     estimated_ml
+
                 FROM sensor_data
+
                 WHERE device_id = %s
+
                 ORDER BY timestamp ASC
-            """, (
-                device_id,
-            ))
+                """,
+                (
+                    device_id,
+                )
+            )
 
 
         rows = cursor.fetchall()
 
 
-        # -------------------------------------------------
+        # =================================================
         # CREATE EXCEL
-        # -------------------------------------------------
+        # =================================================
 
-        wb = Workbook()
+        workbook = Workbook()
 
-        ws = wb.active
-        ws.title = "Sensor Data"
+        sheet = workbook.active
 
+        sheet.title = "Sensor Data"
+
+
+        # -----------------------------------------
+        # HEADER
+        # -----------------------------------------
 
         headers = [
-            "Date / Time",
-            "Accel X (G)",
-            "Accel Y (G)",
-            "Accel Z (G)",
+
+            "วันที่ / เวลา",
+
+            "แกน X (G)",
+
+            "แกน Y (G)",
+
+            "แกน Z (G)",
+
             "PGA",
+
             "Peak PGA",
+
             "Average PGA",
+
             "Pendulum",
-            "Level",
-            "Direction",
+
+            "สถานะ",
+
+            "ทิศทาง",
+
             "Estimated ML"
+
         ]
 
 
-        ws.append(headers)
+        sheet.append(headers)
 
 
-        # Header style
-        for cell in ws[1]:
+        # -----------------------------------------
+        # HEADER STYLE
+        # -----------------------------------------
+
+        for cell in sheet[1]:
 
             cell.font = Font(
                 bold=True
@@ -702,13 +781,14 @@ def export_excel(device_id):
             )
 
 
-        # -------------------------------------------------
+        # -----------------------------------------
         # DATA
-        # -------------------------------------------------
+        # -----------------------------------------
 
         for row in rows:
 
             timestamp = row["timestamp"]
+
 
             if timestamp:
 
@@ -717,61 +797,90 @@ def export_excel(device_id):
                 )
 
 
-            ws.append([
+            sheet.append([
+
                 timestamp,
+
                 row["accel_x"],
+
                 row["accel_y"],
+
                 row["accel_z"],
+
                 row["pga"],
+
                 row["peak_pga"],
+
                 row["avg_pga"],
+
                 row["pendulum"],
+
                 row["level"],
+
                 row["direction"],
+
                 row["estimated_ml"]
+
             ])
 
 
-        # -------------------------------------------------
+        # -----------------------------------------
         # COLUMN WIDTH
-        # -------------------------------------------------
+        # -----------------------------------------
 
         widths = {
+
             "A": 22,
+
             "B": 15,
+
             "C": 15,
+
             "D": 15,
+
             "E": 15,
+
             "F": 15,
+
             "G": 15,
+
             "H": 15,
+
             "I": 15,
+
             "J": 15,
+
             "K": 18
+
         }
 
 
         for column, width in widths.items():
 
-            ws.column_dimensions[
+            sheet.column_dimensions[
                 column
             ].width = width
 
 
-        # -------------------------------------------------
-        # SAVE MEMORY
-        # -------------------------------------------------
+        # -----------------------------------------
+        # CREATE FILE IN MEMORY
+        # -----------------------------------------
 
         output = BytesIO()
 
-        wb.save(output)
+        workbook.save(output)
 
         output.seek(0)
 
 
+        # -----------------------------------------
+        # FILE NAME
+        # -----------------------------------------
+
         filename = (
             f"{device_id}_sensor_data"
         )
+
 
         if date_value:
 
@@ -779,17 +888,27 @@ def export_excel(device_id):
                 f"_{date_value}"
             )
 
+
         filename += ".xlsx"
 
 
+        # -----------------------------------------
+        # DOWNLOAD
+        # -----------------------------------------
+
         return send_file(
+
             output,
+
             as_attachment=True,
+
             download_name=filename,
+
             mimetype=(
                 "application/vnd.openxmlformats-"
                 "officedocument.spreadsheetml.sheet"
             )
+
         )
 
 
@@ -798,19 +917,18 @@ def export_excel(device_id):
         print("EXCEL ERROR:", e)
 
         return jsonify({
+
             "success": False,
-            "message": str(e)
+
+            "message": "Excel export error"
+
         }), 500
 
 
     finally:
 
-        if cursor:
-            cursor.close()
-
-        if conn:
-            conn.close()
-
+        cursor.close()
+        conn.close()
 
 # =========================================================
 # EXPORT PDF
@@ -822,27 +940,30 @@ def export_excel(device_id):
 )
 def export_pdf(device_id):
 
+    # -----------------------------------------
+    # รับวันที่
+    # -----------------------------------------
+
     date_value = request.args.get("date")
 
-    conn = None
-    cursor = None
+
+    conn = get_connection()
+
+    cursor = conn.cursor(
+        dictionary=True
+    )
+
 
     try:
 
-        conn = get_connection()
-
-        cursor = conn.cursor(
-            dictionary=True
-        )
-
-
-        # -------------------------------------------------
-        # GET DATA
-        # -------------------------------------------------
+        # -----------------------------------------
+        # ถ้ามีวันที่
+        # -----------------------------------------
 
         if date_value:
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT
                     timestamp,
                     accel_x,
@@ -855,18 +976,31 @@ def export_pdf(device_id):
                     level,
                     direction,
                     estimated_ml
+
                 FROM sensor_data
+
                 WHERE device_id = %s
+
                 AND DATE(timestamp) = %s
+
                 ORDER BY timestamp ASC
-            """, (
-                device_id,
-                date_value
-            ))
+                """,
+                (
+                    device_id,
+                    date_value
+                )
+            )
+
+
+        # -----------------------------------------
+        # ไม่มีวันที่
+        # = เอาทั้งหมด
+        # -----------------------------------------
 
         else:
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT
                     timestamp,
                     accel_x,
@@ -879,35 +1013,48 @@ def export_pdf(device_id):
                     level,
                     direction,
                     estimated_ml
+
                 FROM sensor_data
+
                 WHERE device_id = %s
+
                 ORDER BY timestamp ASC
-            """, (
-                device_id,
-            ))
+                """,
+                (
+                    device_id,
+                )
+            )
 
 
         rows = cursor.fetchall()
 
 
-        # -------------------------------------------------
+        # =================================================
         # CREATE PDF
-        # -------------------------------------------------
+        # =================================================
 
         output = BytesIO()
 
 
-        doc = SimpleDocTemplate(
+        document = SimpleDocTemplate(
+
             output,
+
             pagesize=landscape(A4),
+
             rightMargin=20,
+
             leftMargin=20,
+
             topMargin=20,
+
             bottomMargin=20
+
         )
 
 
         styles = getSampleStyleSheet()
+
 
         title_style = styles["Title"]
 
@@ -917,55 +1064,80 @@ def export_pdf(device_id):
         elements = []
 
 
-        title = "ESP32 Sensor Monitoring Report"
+        # -----------------------------------------
+        # TITLE
+        # -----------------------------------------
+
+        title = (
+            "ESP32 Sensor Monitoring Report"
+        )
+
 
         if date_value:
 
-            title += f" - {date_value}"
+            title += (
+                f" - {date_value}"
+            )
 
 
         elements.append(
+
             Paragraph(
                 title,
                 title_style
             )
+
         )
+
 
         elements.append(
             Spacer(1, 15)
         )
 
 
-        # -------------------------------------------------
-        # TABLE HEADER
-        # -------------------------------------------------
+        # =================================================
+        # TABLE
+        # =================================================
 
         table_data = [
 
             [
+
                 "Date / Time",
+
                 "X (G)",
+
                 "Y (G)",
+
                 "Z (G)",
+
                 "PGA",
+
                 "Peak PGA",
+
                 "Avg PGA",
+
                 "Pendulum",
+
                 "Level",
+
                 "Direction",
+
                 "ML"
+
             ]
 
         ]
 
 
-        # -------------------------------------------------
-        # TABLE DATA
-        # -------------------------------------------------
+        # -----------------------------------------
+        # DATA
+        # -----------------------------------------
 
         for row in rows:
 
             timestamp = row["timestamp"]
+
 
             if timestamp:
 
@@ -1005,6 +1177,10 @@ def export_pdf(device_id):
             ])
 
 
+        # -----------------------------------------
+        # TABLE
+        # -----------------------------------------
+
         table = Table(
             table_data,
             repeatRows=1
@@ -1012,87 +1188,143 @@ def export_pdf(device_id):
 
 
         table.setStyle(
+
             TableStyle([
 
                 (
+
                     "BACKGROUND",
+
                     (0, 0),
+
                     (-1, 0),
-                    colors.HexColor("#16304f")
+
+                    colors.HexColor(
+                        "#16304f"
+                    )
+
                 ),
 
                 (
+
                     "TEXTCOLOR",
+
                     (0, 0),
+
                     (-1, 0),
+
                     colors.white
+
                 ),
 
                 (
+
                     "FONTNAME",
+
                     (0, 0),
+
                     (-1, 0),
+
                     "Helvetica-Bold"
+
                 ),
 
                 (
+
                     "ALIGN",
+
                     (0, 0),
+
                     (-1, -1),
+
                     "CENTER"
+
                 ),
 
                 (
+
                     "VALIGN",
+
                     (0, 0),
+
                     (-1, -1),
+
                     "MIDDLE"
+
                 ),
 
                 (
+
                     "GRID",
+
                     (0, 0),
+
                     (-1, -1),
+
                     0.5,
+
                     colors.grey
+
                 ),
 
                 (
+
                     "FONTSIZE",
+
                     (0, 0),
+
                     (-1, -1),
+
                     7
+
                 ),
 
                 (
+
                     "ROWBACKGROUNDS",
+
                     (0, 1),
+
                     (-1, -1),
+
                     [
+
                         colors.white,
-                        colors.HexColor("#f2f2f2")
+
+                        colors.HexColor(
+                            "#f2f2f2"
+                        )
+
                     ]
+
                 )
 
             ])
+
         )
 
 
         elements.append(table)
 
 
-        # -------------------------------------------------
-        # BUILD
-        # -------------------------------------------------
+        # -----------------------------------------
+        # BUILD PDF
+        # -----------------------------------------
 
-        doc.build(elements)
+        document.build(elements)
+
 
         output.seek(0)
 
 
+        # -----------------------------------------
+        # FILE NAME
+        # -----------------------------------------
+
         filename = (
             f"{device_id}_sensor_data"
         )
+
 
         if date_value:
 
@@ -1100,14 +1332,24 @@ def export_pdf(device_id):
                 f"_{date_value}"
             )
 
+
         filename += ".pdf"
 
 
+        # -----------------------------------------
+        # DOWNLOAD
+        # -----------------------------------------
+
         return send_file(
+
             output,
+
             as_attachment=True,
+
             download_name=filename,
+
             mimetype="application/pdf"
+
         )
 
 
@@ -1116,29 +1358,88 @@ def export_pdf(device_id):
         print("PDF ERROR:", e)
 
         return jsonify({
+
             "success": False,
-            "message": str(e)
+
+            "message": "PDF export error"
+
         }), 500
 
 
     finally:
 
-        if cursor:
-            cursor.close()
+        cursor.close()
+        conn.close()
+        
 
-        if conn:
-            conn.close()
+# =========================================================
+# GET DEVICES
+# =========================================================
+
+@app.route(
+    "/api/devices",
+    methods=["GET"]
+)
+def get_devices():
+
+    conn = get_connection()
+
+    cursor = conn.cursor(
+        dictionary=True
+    )
+
+
+    try:
+
+        cursor.execute(
+            """
+            SELECT *
+
+            FROM devices
+
+            ORDER BY id DESC
+            """
+        )
+
+
+        rows = cursor.fetchall()
+
+
+        return jsonify({
+
+            "success": True,
+
+            "devices": rows
+
+        })
+
+
+    finally:
+
+        cursor.close()
+        conn.close()
 
 
 # =========================================================
-# RUN
+# RUN SERVER
 # =========================================================
-
 
 if __name__ == "__main__":
 
+    port = int(
+        os.environ.get(
+            "PORT",
+            5000
+        )
+    )
+
+
     app.run(
+
         host="0.0.0.0",
-        port=5000,
-        debug=True
+
+        port=port,
+
+        debug=False
+
     )
