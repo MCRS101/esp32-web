@@ -1170,83 +1170,27 @@
 
 <script>
 
-
 /* =====================================================
-   GLOBAL VARIABLES
+   GLOBAL
 ===================================================== */
 
 let DEVICE_ID = null;
 
 let vibrationChart = null;
 
+let currentPGA = 0;
+let targetPGA = 0;
 
-/*
- * ค่าปัจจุบันของกราฟ
- */
-
-let currentChartValue = 0;
-
-
-/*
- * ค่าเป้าหมายจาก API
- */
-
-let targetChartValue = 0;
-
-
-/*
- * ป้องกัน API request ซ้อนกัน
- */
-
-let isFetching = false;
-
-
-/*
- * timestamp ล่าสุดที่เพิ่มลงตาราง
- */
-
-let lastTableTimestamp = null;
-
-
-/*
- * animation
- */
-
-let chartAnimationFrame = null;
-
-
-/*
- * เวลาที่เพิ่มจุดล่าสุด
- */
+let currentPendulum = 0;
+let targetPendulum = 0;
 
 let lastChartPointTime = 0;
 
+let isFetching = false;
 
-/*
- * จำนวนจุดที่แสดง
- */
+let lastTableTimestamp = null;
 
 const MAX_CHART_POINTS = 60;
-
-
-/* =====================================================
-   PGA THRESHOLD
-===================================================== */
-
-/*
- * ใช้เกณฑ์เดียวกับ Sensor ต้นแบบ
- *
- * LOW       < 0.05
- * MODERATE  < 0.15
- * HIGH      < 0.40
- * SEVERE    >= 0.40
- */
-
-const PGA_LOW = 0.05;
-
-const PGA_MODERATE = 0.15;
-
-const PGA_HIGH = 0.40;
 
 
 /* =====================================================
@@ -1255,271 +1199,185 @@ const PGA_HIGH = 0.40;
 
 function initChart() {
 
-
     const ctx =
         document
-            .getElementById(
-                "vibrationChart"
-            )
+            .getElementById("vibrationChart")
             .getContext("2d");
 
 
-    vibrationChart = new Chart(
-        ctx,
-        {
+    vibrationChart = new Chart(ctx, {
 
-            type: "line",
+        type: "line",
 
+        data: {
 
-            data: {
+            labels: [],
 
-                labels: [],
+            datasets: [
 
+                /* =====================================
+                   PGA
+                ===================================== */
 
-                datasets: [
+                {
+                    label: "PGA",
 
-                    /*
-                     * =================================
-                     * PGA
-                     * =================================
-                     */
+                    data: [],
 
-                    {
+                    borderWidth: 2,
 
-                        label: "PGA",
+                    tension: 0.35,
 
-                        data: [],
+                    cubicInterpolationMode:
+                        "monotone",
 
-                        borderWidth: 2,
+                    pointRadius: 0,
 
-                        tension: 0.35,
+                    pointHoverRadius: 4,
 
-                        cubicInterpolationMode:
-                            "monotone",
-
-                        pointRadius: 0,
-
-                        pointHoverRadius: 4,
-
-                        fill: false
-
-                    },
+                    fill: false
+                },
 
 
-                    /*
-                     * =================================
-                     * LOW = 0.05
-                     * =================================
-                     */
+                /* =====================================
+                   PENDULUM
+                ===================================== */
 
-                    {
+                {
+                    label: "Pendulum",
 
-                        label: "LOW 0.05",
+                    data: [],
 
-                        data: [],
+                    borderWidth: 2,
 
-                        borderWidth: 1,
+                    tension: 0.35,
 
-                        borderDash: [
-                            6,
-                            6
-                        ],
+                    cubicInterpolationMode:
+                        "monotone",
 
-                        pointRadius: 0,
+                    pointRadius: 0,
 
-                        pointHoverRadius: 0,
+                    pointHoverRadius: 4,
 
-                        fill: false
+                    fill: false
+                }
 
-                    },
+            ]
 
-
-                    /*
-                     * =================================
-                     * MODERATE = 0.15
-                     * =================================
-                     */
-
-                    {
-
-                        label: "MODERATE 0.15",
-
-                        data: [],
-
-                        borderWidth: 1,
-
-                        borderDash: [
-                            6,
-                            6
-                        ],
-
-                        pointRadius: 0,
-
-                        pointHoverRadius: 0,
-
-                        fill: false
-
-                    },
+        },
 
 
-                    /*
-                     * =================================
-                     * HIGH = 0.40
-                     * =================================
-                     */
+        options: {
 
-                    {
+            responsive: true,
 
-                        label: "HIGH 0.40",
+            maintainAspectRatio: false,
 
-                        data: [],
+            animation: false,
 
-                        borderWidth: 1,
 
-                        borderDash: [
-                            6,
-                            6
-                        ],
+            interaction: {
 
-                        pointRadius: 0,
+                intersect: false,
 
-                        pointHoverRadius: 0,
-
-                        fill: false
-
-                    }
-
-                ]
+                mode: "index"
 
             },
 
 
-            options: {
+            scales: {
 
-                responsive: true,
+                /* =====================================
+                   X AXIS
+                ===================================== */
 
-                maintainAspectRatio: false,
+                x: {
 
-                /*
-                 * ปิด Animation ของ Chart.js
-                 * เพราะเราทำ Smooth เอง
-                 */
+                    display: true,
 
-                animation: false,
+                    ticks: {
 
-
-                interaction: {
-
-                    intersect: false,
-
-                    mode: "index"
-
-                },
-
-
-                scales: {
-
-                    /*
-                     * =================================
-                     * X AXIS
-                     * =================================
-                     */
-
-                    x: {
-
-                        display: true,
-
-                        ticks: {
-
-                            maxTicksLimit: 8
-
-                        }
-
-                    },
-
-
-                    /*
-                     * =================================
-                     * Y AXIS
-                     *
-                     * FIXED 0.00 - 0.50
-                     * =================================
-                     */
-
-                    y: {
-
-                        min: 0,
-
-                        max: 0.50,
-
-                        beginAtZero: true,
-
-                        ticks: {
-
-                            stepSize: 0.05,
-
-                            precision: 2,
-
-                            callback:
-                                function(value) {
-
-                                    return Number(
-                                        value
-                                    ).toFixed(2);
-
-                                }
-
-                        },
-
-                        title: {
-
-                            display: true,
-
-                            text: "PGA (G)"
-
-                        }
+                        maxTicksLimit: 8
 
                     }
 
                 },
 
 
-                plugins: {
+                /* =====================================
+                   Y AXIS
+                   FIXED 0 - 0.50
+                ===================================== */
 
-                    legend: {
+                y: {
 
-                        display: true
+                    min: 0,
+
+                    max: 0.50,
+
+                    beginAtZero: true,
+
+                    ticks: {
+
+                        stepSize: 0.05,
+
+                        precision: 2,
+
+                        callback:
+                            function(value) {
+
+                                return Number(value)
+                                    .toFixed(2);
+
+                            }
 
                     },
 
+                    title: {
 
-                    tooltip: {
+                        display: true,
 
-                        callbacks: {
+                        text: "Value"
 
-                            label:
-                                function(context) {
+                    }
 
-                                    const value =
-                                        Number(
-                                            context.raw
-                                        );
+                }
+
+            },
 
 
-                                    return (
-                                        context.dataset
-                                            .label
-                                        +
-                                        ": "
-                                        +
-                                        value.toFixed(4)
-                                        +
-                                        " G"
+            plugins: {
+
+                legend: {
+
+                    display: true,
+
+                    position: "top"
+
+                },
+
+
+                tooltip: {
+
+                    callbacks: {
+
+                        label:
+                            function(context) {
+
+                                const value =
+                                    Number(
+                                        context.raw
                                     );
 
-                                }
+                                return (
+                                    context.dataset.label
+                                    +
+                                    ": "
+                                    +
+                                    value.toFixed(4)
+                                );
 
-                        }
+                            }
 
                     }
 
@@ -1528,7 +1386,8 @@ function initChart() {
             }
 
         }
-    );
+
+    });
 
 }
 
@@ -1539,9 +1398,7 @@ function initChart() {
 
 async function loadDevice() {
 
-
     try {
-
 
         const response =
             await fetch(
@@ -1565,12 +1422,6 @@ async function loadDevice() {
             await response.json();
 
 
-        console.log(
-            "Devices:",
-            result
-        );
-
-
         if (
             !result.success ||
             !result.devices ||
@@ -1584,10 +1435,6 @@ async function loadDevice() {
         }
 
 
-        /*
-         * ใช้ Device ตัวแรก
-         */
-
         const device =
             result.devices[0];
 
@@ -1597,16 +1444,10 @@ async function loadDevice() {
 
 
         document
-            .getElementById(
-                "deviceName"
-            )
+            .getElementById("deviceName")
             .textContent =
                 DEVICE_ID;
 
-
-        /*
-         * Device status
-         */
 
         if (
             device.status === "online"
@@ -1622,22 +1463,15 @@ async function loadDevice() {
         }
 
 
-        /*
-         * ดึงข้อมูลครั้งแรก
-         */
-
         await getLatest();
-
 
     }
     catch (error) {
-
 
         console.error(
             "LOAD DEVICE ERROR:",
             error
         );
-
 
         setOffline();
 
@@ -1652,21 +1486,12 @@ async function loadDevice() {
 
 async function getLatest() {
 
-
-    /*
-     * ยังไม่มี Device
-     */
-
     if (!DEVICE_ID) {
 
         return;
 
     }
 
-
-    /*
-     * ป้องกัน Request ซ้อน
-     */
 
     if (isFetching) {
 
@@ -1680,14 +1505,9 @@ async function getLatest() {
 
     try {
 
-
-        const url =
-            `/api/device/${DEVICE_ID}/latest`;
-
-
         const response =
             await fetch(
-                url,
+                `/api/device/${DEVICE_ID}/latest`,
                 {
                     cache: "no-store"
                 }
@@ -1726,16 +1546,8 @@ async function getLatest() {
         );
 
 
-        /*
-         * Update Dashboard
-         */
-
         updateDashboard(data);
 
-
-        /*
-         * เพิ่ม Table เฉพาะข้อมูลใหม่
-         */
 
         const timestamp =
             data.timestamp ||
@@ -1746,12 +1558,10 @@ async function getLatest() {
 
         if (
             timestamp &&
-            timestamp !==
-            lastTableTimestamp
+            timestamp !== lastTableTimestamp
         ) {
 
             addTableRow(data);
-
 
             lastTableTimestamp =
                 timestamp;
@@ -1759,22 +1569,15 @@ async function getLatest() {
         }
 
 
-        /*
-         * Network Online
-         */
-
         setOnline();
-
 
     }
     catch (error) {
-
 
         console.error(
             "LATEST ERROR:",
             error
         );
-
 
         setOffline();
 
@@ -1794,12 +1597,9 @@ async function getLatest() {
 
 function updateDashboard(data) {
 
-
-    /*
-     * =================================
-     * PGA
-     * =================================
-     */
+    /* =====================================
+       PGA
+    ===================================== */
 
     const pga =
         Number(data.pga || 0);
@@ -1811,25 +1611,23 @@ function updateDashboard(data) {
             pga.toFixed(4);
 
 
-    /*
-     * =================================
-     * Pendulum
-     * =================================
-     */
+    /* =====================================
+       PENDULUM
+    ===================================== */
+
+    const pendulum =
+        Number(data.pendulum || 0);
+
 
     document
         .getElementById("pendulum")
         .textContent =
-            Number(
-                data.pendulum || 0
-            ).toFixed(4);
+            pendulum.toFixed(4);
 
 
-    /*
-     * =================================
-     * Peak PGA
-     * =================================
-     */
+    /* =====================================
+       PEAK PGA
+    ===================================== */
 
     document
         .getElementById("peakPga")
@@ -1839,11 +1637,9 @@ function updateDashboard(data) {
             ).toFixed(4);
 
 
-    /*
-     * =================================
-     * ML
-     * =================================
-     */
+    /* =====================================
+       ML
+    ===================================== */
 
     document
         .getElementById("ml")
@@ -1853,11 +1649,9 @@ function updateDashboard(data) {
             ).toFixed(2);
 
 
-    /*
-     * =================================
-     * X
-     * =================================
-     */
+    /* =====================================
+       ACCELERATION
+    ===================================== */
 
     document
         .getElementById("accelX")
@@ -1867,12 +1661,6 @@ function updateDashboard(data) {
             ).toFixed(4);
 
 
-    /*
-     * =================================
-     * Y
-     * =================================
-     */
-
     document
         .getElementById("accelY")
         .textContent =
@@ -1880,12 +1668,6 @@ function updateDashboard(data) {
                 data.accel_y || 0
             ).toFixed(4);
 
-
-    /*
-     * =================================
-     * Z
-     * =================================
-     */
 
     document
         .getElementById("accelZ")
@@ -1895,20 +1677,16 @@ function updateDashboard(data) {
             ).toFixed(4);
 
 
-    /*
-     * =================================
-     * Level
-     * =================================
-     */
+    /* =====================================
+       LEVEL
+    ===================================== */
 
     const level =
         data.level || "LOW";
 
 
     const levelElement =
-        document.getElementById(
-            "level"
-        );
+        document.getElementById("level");
 
 
     levelElement.textContent =
@@ -1919,21 +1697,16 @@ function updateDashboard(data) {
         "level " + level;
 
 
-    /*
-     * =================================
-     * Direction
-     * =================================
-     */
+    /* =====================================
+       DIRECTION
+    ===================================== */
 
     const direction =
-        data.direction ||
-        "CENTER";
+        data.direction || "CENTER";
 
 
     document
-        .getElementById(
-            "direction"
-        )
+        .getElementById("direction")
         .textContent =
             direction;
 
@@ -1943,41 +1716,16 @@ function updateDashboard(data) {
     );
 
 
-    /*
-     * =================================
-     * Graph
-     * =================================
-     */
+    /* =====================================
+       GRAPH TARGET
+    ===================================== */
 
-    addChartData(
-        pga
-    );
-
-}
+    targetPGA =
+        pga;
 
 
-/* =====================================================
-   CHART DATA
-===================================================== */
-
-function addChartData(value) {
-
-
-    /*
-     * ค่า PGA จาก API
-     */
-
-    targetChartValue =
-        Number(value) || 0;
-
-
-    /*
-     * สำคัญ:
-     *
-     * ไม่มีการแก้ Y Scale ตรงนี้แล้ว
-     *
-     * Y จะคงที่ 0 - 0.50
-     */
+    targetPendulum =
+        pendulum;
 
 }
 
@@ -1989,44 +1737,59 @@ function addChartData(value) {
 function smoothGraph(timestamp) {
 
 
-    /*
-     * ความแตกต่างระหว่าง
-     * ค่าปัจจุบันกับค่าจาก API
-     */
+    /* =====================================
+       PGA SMOOTH
+    ===================================== */
 
-    const difference =
-        targetChartValue -
-        currentChartValue;
-
-
-    /*
-     * Smooth
-     */
-
-    currentChartValue +=
-        difference * 0.12;
+    const pgaDifference =
+        targetPGA -
+        currentPGA;
 
 
-    /*
-     * ถ้าใกล้มากแล้ว
-     * ให้ใช้ค่าจริง
-     */
+    currentPGA +=
+        pgaDifference * 0.12;
+
 
     if (
-        Math.abs(difference)
+        Math.abs(pgaDifference)
         <
         0.00001
     ) {
 
-        currentChartValue =
-            targetChartValue;
+        currentPGA =
+            targetPGA;
 
     }
 
 
-    /*
-     * เพิ่มจุดทุก 100ms
-     */
+    /* =====================================
+       PENDULUM SMOOTH
+    ===================================== */
+
+    const pendulumDifference =
+        targetPendulum -
+        currentPendulum;
+
+
+    currentPendulum +=
+        pendulumDifference * 0.12;
+
+
+    if (
+        Math.abs(pendulumDifference)
+        <
+        0.00001
+    ) {
+
+        currentPendulum =
+            targetPendulum;
+
+    }
+
+
+    /* =====================================
+       ADD GRAPH POINT
+    ===================================== */
 
     if (
         timestamp -
@@ -2035,13 +1798,11 @@ function smoothGraph(timestamp) {
         100
     ) {
 
-
         lastChartPointTime =
             timestamp;
 
 
         if (vibrationChart) {
-
 
             const now =
                 new Date();
@@ -2057,85 +1818,45 @@ function smoothGraph(timestamp) {
                 );
 
 
-            /*
-             * =================================
-             * LABEL
-             * =================================
-             */
+            /* =================================
+               X
+            ================================= */
 
             vibrationChart
                 .data
                 .labels
-                .push(
-                    time
-                );
+                .push(time);
 
 
-            /*
-             * =================================
-             * PGA
-             * =================================
-             */
+            /* =================================
+               PGA
+            ================================= */
 
             vibrationChart
                 .data
                 .datasets[0]
                 .data
                 .push(
-                    currentChartValue
+                    currentPGA
                 );
 
 
-            /*
-             * =================================
-             * เส้น 0.05
-             * =================================
-             */
+            /* =================================
+               PENDULUM
+            ================================= */
 
             vibrationChart
                 .data
                 .datasets[1]
                 .data
                 .push(
-                    PGA_LOW
+                    currentPendulum
                 );
 
 
-            /*
-             * =================================
-             * เส้น 0.15
-             * =================================
-             */
-
-            vibrationChart
-                .data
-                .datasets[2]
-                .data
-                .push(
-                    PGA_MODERATE
-                );
-
-
-            /*
-             * =================================
-             * เส้น 0.40
-             * =================================
-             */
-
-            vibrationChart
-                .data
-                .datasets[3]
-                .data
-                .push(
-                    PGA_HIGH
-                );
-
-
-            /*
-             * =================================
-             * จำกัดจำนวนจุด
-             * =================================
-             */
+            /* =================================
+               LIMIT DATA
+            ================================= */
 
             if (
                 vibrationChart
@@ -2146,16 +1867,11 @@ function smoothGraph(timestamp) {
                 MAX_CHART_POINTS
             ) {
 
-
                 vibrationChart
                     .data
                     .labels
                     .shift();
 
-
-                /*
-                 * PGA
-                 */
 
                 vibrationChart
                     .data
@@ -2164,44 +1880,14 @@ function smoothGraph(timestamp) {
                     .shift();
 
 
-                /*
-                 * LOW
-                 */
-
                 vibrationChart
                     .data
                     .datasets[1]
                     .data
                     .shift();
 
-
-                /*
-                 * MODERATE
-                 */
-
-                vibrationChart
-                    .data
-                    .datasets[2]
-                    .data
-                    .shift();
-
-
-                /*
-                 * HIGH
-                 */
-
-                vibrationChart
-                    .data
-                    .datasets[3]
-                    .data
-                    .shift();
-
             }
 
-
-            /*
-             * Update Chart
-             */
 
             vibrationChart.update(
                 "none"
@@ -2212,14 +1898,9 @@ function smoothGraph(timestamp) {
     }
 
 
-    /*
-     * ทำต่อประมาณ 60 FPS
-     */
-
-    chartAnimationFrame =
-        requestAnimationFrame(
-            smoothGraph
-        );
+    requestAnimationFrame(
+        smoothGraph
+    );
 
 }
 
@@ -2229,7 +1910,6 @@ function smoothGraph(timestamp) {
 ===================================================== */
 
 function addTableRow(data) {
-
 
     const table =
         document.getElementById(
@@ -2246,10 +1926,6 @@ function addTableRow(data) {
     let time = "-";
 
 
-    /*
-     * รองรับ timestamp
-     */
-
     const timestamp =
         data.timestamp ||
         data.created_at ||
@@ -2259,11 +1935,8 @@ function addTableRow(data) {
 
     if (timestamp) {
 
-
         const date =
-            new Date(
-                timestamp
-            );
+            new Date(timestamp);
 
 
         if (
@@ -2330,23 +2003,11 @@ function addTableRow(data) {
     `;
 
 
-    /*
-     * ข้อมูลใหม่อยู่บนสุด
-     */
+    table.prepend(row);
 
-    table.prepend(
-        row
-    );
-
-
-    /*
-     * เก็บแค่ 10 รายการ
-     */
 
     while (
-        table.children.length
-        >
-        10
+        table.children.length > 10
     ) {
 
         table.removeChild(
@@ -2359,13 +2020,12 @@ function addTableRow(data) {
 
 
 /* =====================================================
-   DIRECTION STYLE
+   DIRECTION
 ===================================================== */
 
 function updateDirectionStyle(
     direction
 ) {
-
 
     const center =
         document.getElementById(
@@ -2378,7 +2038,7 @@ function updateDirectionStyle(
 
 
     setTimeout(
-        function () {
+        function() {
 
             center.style.transform =
                 "scale(1)";
@@ -2395,7 +2055,6 @@ function updateDirectionStyle(
 ===================================================== */
 
 function setOnline() {
-
 
     const status =
         document.getElementById(
@@ -2435,7 +2094,6 @@ function setOnline() {
 
 function setOffline() {
 
-
     const status =
         document.getElementById(
             "deviceStatus"
@@ -2469,49 +2127,31 @@ function setOffline() {
 
 
 /* =====================================================
-   START DASHBOARD
+   START
 ===================================================== */
 
 document.addEventListener(
     "DOMContentLoaded",
-    function () {
-
+    function() {
 
         console.log(
             "Dashboard starting..."
         );
 
 
-        /*
-         * สร้างกราฟ
-         */
-
         initChart();
 
 
-        /*
-         * เริ่ม Smooth Graph
-         */
+        requestAnimationFrame(
+            smoothGraph
+        );
 
-        chartAnimationFrame =
-            requestAnimationFrame(
-                smoothGraph
-            );
-
-
-        /*
-         * โหลด ESP32
-         */
 
         loadDevice();
 
 
-        /*
-         * ดึงข้อมูลทุก 200ms
-         */
-
         setInterval(
-            function () {
+            function() {
 
                 getLatest();
 
