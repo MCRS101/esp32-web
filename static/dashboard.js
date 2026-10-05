@@ -1,5 +1,3 @@
-
-
 /* =====================================================
    GLOBAL
 ===================================================== */
@@ -29,11 +27,14 @@ const MAX_CHART_POINTS = 60;
 
 function initChart() {
 
-    const ctx =
-        document
-            .getElementById("vibrationChart")
-            .getContext("2d");
+    const canvas = document.getElementById("vibrationChart");
 
+    if (!canvas) {
+        console.error("Canvas vibrationChart not found");
+        return;
+    }
+
+    const ctx = canvas.getContext("2d");
 
     vibrationChart = new Chart(ctx, {
 
@@ -45,24 +46,18 @@ function initChart() {
 
             datasets: [
 
-                /* =====================================
-                   PGA
-                ===================================== */
-
                 {
-                    label: "แรงสั่นสะเทือน PGA (g)",
+                    label: "PGA",
 
                     data: [],
 
-                    borderColor: "#20b978",
-                    backgroundColor: "rgba(32,185,120,.08)",
+                    borderColor: "#10b981",
+
+                    backgroundColor: "transparent",
 
                     borderWidth: 2,
 
                     tension: 0.35,
-
-                    cubicInterpolationMode:
-                        "monotone",
 
                     pointRadius: 0,
 
@@ -71,25 +66,18 @@ function initChart() {
                     fill: false
                 },
 
-
-                /* =====================================
-                   PENDULUM
-                ===================================== */
-
                 {
-                    label: "การแกว่งลูกตุ้ม Pendulum",
+                    label: "Pendulum",
 
                     data: [],
 
-                    borderColor: "#ff6b2c",
-                    backgroundColor: "rgba(255,107,44,.08)",
+                    borderColor: "#f97316",
+
+                    backgroundColor: "transparent",
 
                     borderWidth: 2,
 
                     tension: 0.35,
-
-                    cubicInterpolationMode:
-                        "monotone",
 
                     pointRadius: 0,
 
@@ -102,7 +90,6 @@ function initChart() {
 
         },
 
-
         options: {
 
             responsive: true,
@@ -111,39 +98,20 @@ function initChart() {
 
             animation: false,
 
-
             interaction: {
-
                 intersect: false,
-
                 mode: "index"
-
             },
-
 
             scales: {
 
-                /* =====================================
-                   X AXIS
-                ===================================== */
-
                 x: {
-
                     display: true,
 
                     ticks: {
-
                         maxTicksLimit: 8
-
                     }
-
                 },
-
-
-                /* =====================================
-                   Y AXIS
-                   FIXED 0 - 0.50
-                ===================================== */
 
                 y: {
 
@@ -154,77 +122,42 @@ function initChart() {
                     beginAtZero: true,
 
                     ticks: {
-
                         stepSize: 0.2,
-
-                        precision: 2,
-
-                        color: "#8fa4bf",
-
-                        callback:
-                            function(value) {
-
-                                return Number(value)
-                                    .toFixed(2);
-
-                            }
-
+                        precision: 2
                     },
 
                     title: {
-
                         display: true,
-
-                        text: "Value",
-                        color: "#8fa4bf"
-
-                    },
-
-                    grid: {
-                        color: "rgba(96, 125, 155, 0.16)"
+                        text: "Value"
                     }
 
                 }
 
             },
 
-
             plugins: {
 
                 legend: {
-
                     display: true,
-
-                    position: "top",
-
-                    labels: {
-                        color: "#b8c9dc"
-                    }
-
+                    position: "top"
                 },
-
 
                 tooltip: {
 
                     callbacks: {
 
-                        label:
-                            function(context) {
+                        label: function(context) {
 
-                                const value =
-                                    Number(
-                                        context.raw
-                                    );
+                            const value =
+                                Number(context.raw || 0);
 
-                                return (
-                                    context.dataset.label
-                                    +
-                                    ": "
-                                    +
-                                    value.toFixed(4)
-                                );
+                            return (
+                                context.dataset.label +
+                                ": " +
+                                value.toFixed(4)
+                            );
 
-                            }
+                        }
 
                     }
 
@@ -235,6 +168,8 @@ function initChart() {
         }
 
     });
+
+    console.log("Chart initialized");
 
 }
 
@@ -247,14 +182,14 @@ async function loadDevice() {
 
     try {
 
-        const response =
-            await fetch(
-                "/api/devices",
-                {
-                    cache: "no-store"
-                }
-            );
+        console.log("Loading devices...");
 
+        const response = await fetch(
+            "/api/devices",
+            {
+                cache: "no-store"
+            }
+        );
 
         if (!response.ok) {
 
@@ -264,10 +199,9 @@ async function loadDevice() {
 
         }
 
+        const result = await response.json();
 
-        const result =
-            await response.json();
-
+        console.log("Devices API:", result);
 
         if (
             !result.success ||
@@ -281,23 +215,28 @@ async function loadDevice() {
 
         }
 
+        const device = result.devices[0];
 
-        const device =
-            result.devices[0];
+        DEVICE_ID = device.device_id;
 
-
-        DEVICE_ID =
-            device.device_id;
-
+        console.log(
+            "Selected device:",
+            DEVICE_ID
+        );
 
         document
             .getElementById("deviceName")
-            .textContent =
-                DEVICE_ID;
+            .textContent = DEVICE_ID;
 
+
+        /*
+         * สำคัญ
+         * เช็คสถานะจาก API
+         */
 
         if (
-            device.status === "online"
+            device.status === "online" ||
+            device.status === "connected"
         ) {
 
             setOnline();
@@ -310,9 +249,14 @@ async function loadDevice() {
         }
 
 
+        /*
+         * โหลดข้อมูลล่าสุด
+         */
+
         await getLatest();
 
     }
+
     catch (error) {
 
         console.error(
@@ -339,27 +283,30 @@ async function getLatest() {
 
     }
 
-
     if (isFetching) {
 
         return;
 
     }
 
-
     isFetching = true;
-
 
     try {
 
-        const response =
-            await fetch(
-                `/api/device/${DEVICE_ID}/latest`,
-                {
-                    cache: "no-store"
-                }
-            );
+        const url =
+            `/api/device/${encodeURIComponent(DEVICE_ID)}/latest`;
 
+        console.log(
+            "GET:",
+            url
+        );
+
+        const response = await fetch(
+            url,
+            {
+                cache: "no-store"
+            }
+        );
 
         if (!response.ok) {
 
@@ -369,10 +316,13 @@ async function getLatest() {
 
         }
 
-
         const result =
             await response.json();
 
+        console.log(
+            "Latest API:",
+            result
+        );
 
         if (!result.success) {
 
@@ -382,26 +332,38 @@ async function getLatest() {
 
         }
 
+        const data = result.data;
 
-        const data =
-            result.data;
+        if (!data) {
 
+            throw new Error(
+                "No sensor data"
+            );
+
+        }
 
         console.log(
-            "Sensor:",
+            "Sensor DATA:",
             data
         );
 
 
+        /*
+         * UPDATE DASHBOARD
+         */
+
         updateDashboard(data);
 
+
+        /*
+         * TABLE
+         */
 
         const timestamp =
             data.timestamp ||
             data.created_at ||
             data.time ||
             null;
-
 
         if (
             timestamp &&
@@ -416,9 +378,14 @@ async function getLatest() {
         }
 
 
+        /*
+         * DEVICE ONLINE
+         */
+
         setOnline();
 
     }
+
     catch (error) {
 
         console.error(
@@ -429,6 +396,7 @@ async function getLatest() {
         setOffline();
 
     }
+
     finally {
 
         isFetching = false;
@@ -444,195 +412,447 @@ async function getLatest() {
 
 function updateDashboard(data) {
 
-    /* =====================================
+    console.log(
+        "Updating dashboard:",
+        data
+    );
+
+
+    /* =================================================
        PGA
-    ===================================== */
+    ================================================= */
 
     const pga =
-        Number(data.pga || 0);
+        Number(data.pga ?? 0);
 
+    const pgaElement =
+        document.getElementById("pga");
 
-    document
-        .getElementById("pga")
-        .textContent =
+    if (pgaElement) {
+
+        pgaElement.textContent =
             pga.toFixed(4);
 
+    }
 
-    /* =====================================
+
+    /* =================================================
        PENDULUM
-    ===================================== */
+    ================================================= */
 
     const pendulum =
-        Number(data.pendulum || 0);
+        Number(data.pendulum ?? 0);
 
+    const pendulumElement =
+        document.getElementById("pendulum");
 
-    document
-        .getElementById("pendulum")
-        .textContent =
+    if (pendulumElement) {
+
+        pendulumElement.textContent =
             pendulum.toFixed(4);
 
+    }
 
-    /* =====================================
+
+    /* =================================================
        PEAK PGA
-    ===================================== */
+    ================================================= */
 
-    document
-        .getElementById("peakPga")
-        .textContent =
-            Number(
-                data.peak_pga || 0
-            ).toFixed(4);
+    const peakPga =
+        Number(data.peak_pga ?? 0);
+
+    const peakElement =
+        document.getElementById("peakPga");
+
+    if (peakElement) {
+
+        peakElement.textContent =
+            peakPga.toFixed(4);
+
+    }
 
 
-    /* =====================================
+    /* =================================================
        ML
-    ===================================== */
+    ================================================= */
 
-    document
-        .getElementById("ml")
-        .textContent =
-            Number(
-                data.estimated_ml || 0
-            ).toFixed(2);
+    const ml =
+        Number(data.estimated_ml ?? 0);
 
+    const mlElement =
+        document.getElementById("ml");
 
-    /* =====================================
-       ACCELERATION
-    ===================================== */
+    if (mlElement) {
 
-    document
-        .getElementById("accelX")
-        .textContent =
-            Number(
-                data.accel_x || 0
-            ).toFixed(4);
+        mlElement.textContent =
+            ml.toFixed(2);
+
+    }
 
 
-    document
-        .getElementById("accelY")
-        .textContent =
-            Number(
-                data.accel_y || 0
-            ).toFixed(4);
+    /* =================================================
+       ACCELERATION X
+    ================================================= */
+
+    const accelX =
+        Number(data.accel_x ?? 0);
+
+    const accelXElement =
+        document.getElementById("accelX");
+
+    if (accelXElement) {
+
+        accelXElement.textContent =
+            accelX.toFixed(4);
+
+    }
 
 
-    document
-        .getElementById("accelZ")
-        .textContent =
-            Number(
-                data.accel_z || 0
-            ).toFixed(4);
+    /* =================================================
+       ACCELERATION Y
+    ================================================= */
+
+    const accelY =
+        Number(data.accel_y ?? 0);
+
+    const accelYElement =
+        document.getElementById("accelY");
+
+    if (accelYElement) {
+
+        accelYElement.textContent =
+            accelY.toFixed(4);
+
+    }
 
 
-    /* =====================================
+    /* =================================================
+       ACCELERATION Z
+    ================================================= */
+
+    const accelZ =
+        Number(data.accel_z ?? 0);
+
+    const accelZElement =
+        document.getElementById("accelZ");
+
+    if (accelZElement) {
+
+        accelZElement.textContent =
+            accelZ.toFixed(4);
+
+    }
+
+
+    /* =================================================
        LEVEL
-    ===================================== */
+    ================================================= */
 
     const level =
         data.level || "LOW";
 
-
     const levelElement =
         document.getElementById("level");
 
+    if (levelElement) {
 
-    levelElement.textContent =
-        level;
+        levelElement.textContent =
+            level;
+
+        levelElement.className =
+            "level " + level;
+
+    }
 
 
-    levelElement.className =
-        "level " + level;
-
-
-    /* =====================================
+    /* =================================================
        DIRECTION
-    ===================================== */
+       แก้จาก id="direction"
+       เป็น id="realtimeDirection"
+    ================================================= */
 
     const direction =
         data.direction || "CENTER";
 
+    const directionElement =
+        document.getElementById(
+            "realtimeDirection"
+        );
 
-    document
-        .getElementById("realtimeDirection")
-        .textContent =
+    if (directionElement) {
+
+        directionElement.textContent =
             direction;
 
+    }
 
-    updateDirectionStyle(
+
+    /*
+     * หมุนเข็มทิศ
+     */
+
+    updateCompass(direction);
+
+
+    /* =================================================
+       PENDULUM DISPLAY
+    ================================================= */
+
+    updatePendulum(
+        pendulum,
         direction
     );
 
 
-    /* =====================================
+    /* =================================================
+       SENSOR BARS
+    ================================================= */
+
+    updateSensorBars(
+        accelX,
+        accelY,
+        accelZ
+    );
+
+
+    /* =================================================
        GRAPH TARGET
-    ===================================== */
+       สำคัญมาก
+    ================================================= */
 
     targetPGA =
         pga;
 
-
     targetPendulum =
         pendulum;
 
-    updateViewportVisuals(data);
-    updateSensorStatus(data);
+
+    console.log(
+        "Graph target:",
+        {
+            PGA: targetPGA,
+            Pendulum: targetPendulum
+        }
+    );
 
 }
-
 
 
 /* =====================================================
-   VIEWPORT VISUALS
+   COMPASS
 ===================================================== */
 
-function updateViewportVisuals(data) {
-    const x = Number(data.accel_x || 0);
-    const y = Number(data.accel_y || 0);
-    const z = Number(data.accel_z || 0);
-    const pendulum = Number(data.pendulum || 0);
-    const direction = String(data.direction || "CENTER").toUpperCase();
+function updateCompass(direction) {
 
-    const setBar = (id, valueId, value) => {
-        const bar = document.getElementById(id);
-        const text = document.getElementById(valueId);
-        const percent = Math.min(100, Math.abs(value) / 0.6 * 100);
-        if (bar) bar.style.height = percent + "%";
-        if (text) text.textContent = value.toFixed(2);
-    };
+    const needle =
+        document.getElementById(
+            "directionNeedle"
+        );
 
-    setBar("barX", "barValueX", x);
-    setBar("barY", "barValueY", y);
-    setBar("barZ", "barValueZ", z);
+    if (!needle) {
 
-    const vector = document.getElementById("realtimeVector");
-    if (vector) vector.textContent = pendulum.toFixed(2);
+        return;
 
-    const realtimeDirection = document.getElementById("realtimeDirection");
-    if (realtimeDirection) realtimeDirection.textContent = direction;
-
-    const angleMap = {
-        N: 0, NE: 45, E: 90, SE: 135,
-        S: 180, SW: 225, W: 270, NW: 315,
-        CENTER: 0, "-": 0
-    };
-    const angle = angleMap[direction] ?? 0;
-    const needle = document.getElementById("directionNeedle");
-    if (needle) needle.style.transform = `translate(-50%, -100%) rotate(${angle}deg)`;
-
-    const rod = document.getElementById("pendulumRod");
-    if (rod) {
-        const sway = Math.max(-28, Math.min(28, x * 45));
-        rod.style.transform = `translateX(-50%) rotate(${sway}deg)`;
     }
+
+
+    const angles = {
+
+        "N": 0,
+
+        "NE": 45,
+
+        "E": 90,
+
+        "SE": 135,
+
+        "S": 180,
+
+        "SW": 225,
+
+        "W": 270,
+
+        "NW": 315,
+
+        "CENTER": 0
+
+    };
+
+
+    const angle =
+        angles[direction] ?? 0;
+
+
+    needle.style.transform =
+        `translate(-50%, -100%) rotate(${angle}deg)`;
+
 }
 
-function updateSensorStatus(data) {
-    const connected = true;
-    const mpu = document.getElementById("mpuStatus");
-    const sharp = document.getElementById("sharpStatus");
-    if (mpu) mpu.textContent = connected ? "ปกติ" : "ผิดปกติ";
-    if (sharp) sharp.textContent = connected ? "ปกติ" : "ผิดปกติ";
+
+/* =====================================================
+   PENDULUM
+===================================================== */
+
+function updatePendulum(
+    value,
+    direction
+) {
+
+    const vector =
+        document.getElementById(
+            "realtimeVector"
+        );
+
+    if (vector) {
+
+        vector.textContent =
+            Number(value).toFixed(2);
+
+    }
+
+
+    const rod =
+        document.getElementById(
+            "pendulumRod"
+        );
+
+    if (!rod) {
+
+        return;
+
+    }
+
+
+    const angles = {
+
+        "N": -10,
+
+        "NE": 10,
+
+        "E": 20,
+
+        "SE": 10,
+
+        "S": 0,
+
+        "SW": -10,
+
+        "W": -20,
+
+        "NW": -10,
+
+        "CENTER": 0
+
+    };
+
+
+    const angle =
+        angles[direction] ?? 0;
+
+
+    rod.style.transform =
+        `translateX(-50%) rotate(${angle}deg)`;
+
 }
+
+
+/* =====================================================
+   SENSOR BARS
+===================================================== */
+
+function updateSensorBars(
+    x,
+    y,
+    z
+) {
+
+    const maxValue = 1.0;
+
+
+    const barX =
+        document.getElementById("barX");
+
+    const barY =
+        document.getElementById("barY");
+
+    const barZ =
+        document.getElementById("barZ");
+
+
+    const valueX =
+        document.getElementById("barValueX");
+
+    const valueY =
+        document.getElementById("barValueY");
+
+    const valueZ =
+        document.getElementById("barValueZ");
+
+
+    const percentX =
+        Math.min(
+            Math.abs(x) / maxValue * 100,
+            100
+        );
+
+    const percentY =
+        Math.min(
+            Math.abs(y) / maxValue * 100,
+            100
+        );
+
+    const percentZ =
+        Math.min(
+            Math.abs(z) / maxValue * 100,
+            100
+        );
+
+
+    if (barX) {
+
+        barX.style.height =
+            percentX + "%";
+
+    }
+
+    if (barY) {
+
+        barY.style.height =
+            percentY + "%";
+
+    }
+
+    if (barZ) {
+
+        barZ.style.height =
+            percentZ + "%";
+
+    }
+
+
+    if (valueX) {
+
+        valueX.textContent =
+            x.toFixed(2);
+
+    }
+
+    if (valueY) {
+
+        valueY.textContent =
+            y.toFixed(2);
+
+    }
+
+    if (valueZ) {
+
+        valueZ.textContent =
+            z.toFixed(2);
+
+    }
+
+}
+
 
 /* =====================================================
    SMOOTH GRAPH
@@ -640,10 +860,9 @@ function updateSensorStatus(data) {
 
 function smoothGraph(timestamp) {
 
-
-    /* =====================================
-       PGA SMOOTH
-    ===================================== */
+    /*
+     * PGA
+     */
 
     const pgaDifference =
         targetPGA -
@@ -651,13 +870,11 @@ function smoothGraph(timestamp) {
 
 
     currentPGA +=
-        pgaDifference * 0.12;
+        pgaDifference * 0.15;
 
 
     if (
-        Math.abs(pgaDifference)
-        <
-        0.00001
+        Math.abs(pgaDifference) < 0.00001
     ) {
 
         currentPGA =
@@ -666,9 +883,9 @@ function smoothGraph(timestamp) {
     }
 
 
-    /* =====================================
-       PENDULUM SMOOTH
-    ===================================== */
+    /*
+     * Pendulum
+     */
 
     const pendulumDifference =
         targetPendulum -
@@ -676,13 +893,11 @@ function smoothGraph(timestamp) {
 
 
     currentPendulum +=
-        pendulumDifference * 0.12;
+        pendulumDifference * 0.15;
 
 
     if (
-        Math.abs(pendulumDifference)
-        <
-        0.00001
+        Math.abs(pendulumDifference) < 0.00001
     ) {
 
         currentPendulum =
@@ -691,15 +906,13 @@ function smoothGraph(timestamp) {
     }
 
 
-    /* =====================================
-       ADD GRAPH POINT
-    ===================================== */
+    /*
+     * Add graph point every 100ms
+     */
 
     if (
         timestamp -
-        lastChartPointTime
-        >=
-        100
+        lastChartPointTime >= 100
     ) {
 
         lastChartPointTime =
@@ -722,71 +935,41 @@ function smoothGraph(timestamp) {
                 );
 
 
-            /* =================================
-               X
-            ================================= */
-
-            vibrationChart
-                .data
-                .labels
-                .push(time);
+            vibrationChart.data.labels.push(
+                time
+            );
 
 
-            /* =================================
-               PGA
-            ================================= */
-
-            vibrationChart
-                .data
-                .datasets[0]
+            vibrationChart.data.datasets[0]
                 .data
                 .push(
                     currentPGA
                 );
 
 
-            /* =================================
-               PENDULUM
-            ================================= */
-
-            vibrationChart
-                .data
-                .datasets[1]
+            vibrationChart.data.datasets[1]
                 .data
                 .push(
                     currentPendulum
                 );
 
 
-            /* =================================
-               LIMIT DATA
-            ================================= */
+            /*
+             * จำกัด 60 จุด
+             */
 
             if (
-                vibrationChart
-                    .data
-                    .labels
-                    .length
-                >
+                vibrationChart.data.labels.length >
                 MAX_CHART_POINTS
             ) {
 
-                vibrationChart
-                    .data
-                    .labels
-                    .shift();
+                vibrationChart.data.labels.shift();
 
-
-                vibrationChart
-                    .data
-                    .datasets[0]
+                vibrationChart.data.datasets[0]
                     .data
                     .shift();
 
-
-                vibrationChart
-                    .data
-                    .datasets[1]
+                vibrationChart.data.datasets[1]
                     .data
                     .shift();
 
@@ -820,14 +1003,15 @@ function addTableRow(data) {
             "dataTable"
         );
 
+    if (!table) {
+
+        return;
+
+    }
+
 
     const row =
-        document.createElement(
-            "tr"
-        );
-
-
-    let time = "-";
+        document.createElement("tr");
 
 
     const timestamp =
@@ -837,17 +1021,15 @@ function addTableRow(data) {
         null;
 
 
+    let time = "-";
+
+
     if (timestamp) {
 
         const date =
             new Date(timestamp);
 
-
-        if (
-            !isNaN(
-                date.getTime()
-            )
-        ) {
+        if (!isNaN(date.getTime())) {
 
             time =
                 date.toLocaleTimeString();
@@ -872,31 +1054,29 @@ function addTableRow(data) {
 
     row.innerHTML = `
 
-        <td>
-            ${time}
-        </td>
+        <td>${time}</td>
 
         <td>
             ${Number(
-                data.accel_x || 0
+                data.accel_x ?? 0
             ).toFixed(4)}
         </td>
 
         <td>
             ${Number(
-                data.accel_y || 0
+                data.accel_y ?? 0
             ).toFixed(4)}
         </td>
 
         <td>
             ${Number(
-                data.accel_z || 0
+                data.accel_z ?? 0
             ).toFixed(4)}
         </td>
 
         <td>
             ${Number(
-                data.pga || 0
+                data.pga ?? 0
             ).toFixed(4)}
         </td>
 
@@ -909,8 +1089,6 @@ function addTableRow(data) {
 
     table.prepend(row);
 
-    historyRows.unshift(data);
-    if (historyRows.length > 100) historyRows = historyRows.slice(0, 100);
 
     while (
         table.children.length > 10
@@ -926,74 +1104,6 @@ function addTableRow(data) {
 
 
 /* =====================================================
-   DIRECTION
-===================================================== */
-
-function updateDirectionStyle(direction) {
-
-
-    const directionElement =
-        document.getElementById(
-            "realtimeDirection"
-        );
-
-    if (!directionElement) {
-        return;
-    }
-
-    directionElement.textContent =
-        direction;
-
-    directionElement.style.transform =
-        "scale(1.05)";
-
-    setTimeout(function() {
-
-        directionElement.style.transform =
-            "scale(1)";
-
-    }, 150);
-
-
-    /* ===============================
-       Compass Needle
-    =============================== */
-
-    const needle =
-        document.getElementById(
-            "directionNeedle"
-        );
-
-    if (!needle) {
-        return;
-    }
-
-
-    const directionAngles = {
-
-        "N": 0,
-        "NE": 45,
-        "E": 90,
-        "SE": 135,
-        "S": 180,
-        "SW": 225,
-        "W": 270,
-        "NW": 315,
-        "CENTER": 0
-
-    };
-
-
-    const angle =
-        directionAngles[direction] ?? 0;
-
-
-    needle.style.transform =
-        `translate(-50%, -100%) rotate(${angle}deg)`;
-
-}
-
-/* =====================================================
    ONLINE
 ===================================================== */
 
@@ -1004,29 +1114,31 @@ function setOnline() {
             "deviceStatus"
         );
 
+    if (status) {
 
-    status.textContent =
-        "● Online";
+        status.textContent =
+            "● Online";
+
+        status.className =
+            "device-online";
+
+    }
 
 
-    status.className =
-        "device-online";
-
-
-    document
-        .getElementById(
+    const network =
+        document.getElementById(
             "networkStatus"
-        )
-        .textContent =
+        );
+
+    if (network) {
+
+        network.textContent =
             "Online";
 
-
-    document
-        .getElementById(
-            "networkStatus"
-        )
-        .className =
+        network.className =
             "status-online";
+
+    }
 
 }
 
@@ -1042,136 +1154,34 @@ function setOffline() {
             "deviceStatus"
         );
 
+    if (status) {
 
-    status.textContent =
-        "● Offline";
+        status.textContent =
+            "● Offline";
+
+        status.className =
+            "device-offline";
+
+    }
 
 
-    status.className =
-        "device-offline";
-
-
-    document
-        .getElementById(
+    const network =
+        document.getElementById(
             "networkStatus"
-        )
-        .textContent =
+        );
+
+    if (network) {
+
+        network.textContent =
             "Offline";
 
-
-    document
-        .getElementById(
-            "networkStatus"
-        )
-        .className =
+        network.className =
             "status-offline";
 
-}
-
-
-
-/* =====================================================
-   DATABASE HISTORY / EXPORT
-===================================================== */
-
-let historyRows = [];
-
-async function loadHistory(limit = 20) {
-    if (!DEVICE_ID) return [];
-    try {
-        const response = await fetch(`/api/device/${DEVICE_ID}/history?limit=${limit}`, { cache: "no-store" });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const result = await response.json();
-        const rows = result.data || result.history || result.records || [];
-        historyRows = Array.isArray(rows) ? rows : [];
-        renderHistory(historyRows);
-        return historyRows;
-    } catch (error) {
-        console.error("HISTORY ERROR:", error);
-        return [];
     }
+
 }
 
-function formatDateTime(value) {
-    if (!value) return "-";
-    const d = new Date(value);
-    return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
-}
-
-function renderHistory(rows) {
-    const table = document.getElementById("dataTable");
-    if (!table) return;
-    table.innerHTML = "";
-    rows.slice(0, 20).forEach(data => {
-        const tr = document.createElement("tr");
-        const level = data.level || "LOW";
-        tr.innerHTML = `
-            <td>${formatDateTime(data.timestamp || data.created_at || data.time)}</td>
-            <td>${Number(data.accel_x || 0).toFixed(2)}</td>
-            <td>${Number(data.accel_y || 0).toFixed(2)}</td>
-            <td>${Number(data.accel_z || 0).toFixed(2)}</td>
-            <td><span class="table-level">${level}</span></td>
-        `;
-        table.appendChild(tr);
-    });
-}
-
-function exportExcel() {
-    if (!historyRows.length) return alert("ยังไม่มีข้อมูลสำหรับ Export");
-    const header = ["วัน/เวลา", "แกน X (G)", "แกน Y (G)", "แกน Z (G)", "PGA (G)", "Pendulum", "สถานะ"];
-    const lines = [header.join(",")];
-    historyRows.forEach(d => lines.push([
-        formatDateTime(d.timestamp || d.created_at || d.time),
-        Number(d.accel_x || 0).toFixed(4),
-        Number(d.accel_y || 0).toFixed(4),
-        Number(d.accel_z || 0).toFixed(4),
-        Number(d.pga || 0).toFixed(4),
-        Number(d.pendulum || 0).toFixed(4),
-        d.level || ""
-    ].map(v => `"${String(v).replaceAll('"','""')}"`).join(",")));
-    const blob = new Blob(["\ufeff" + lines.join("\n")], {type: "text/csv;charset=utf-8;"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `esp32-vibration-${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-}
-
-function exportPdf() {
-    window.print();
-}
-
-/* =====================================================
-   FEATURES SETTINGS
-===================================================== */
-
-function initSettings() {
-    const sensitivity = document.getElementById("sensitivityRange");
-    const sensitivityText = document.getElementById("sensitivityText");
-    const richter = document.getElementById("richterRange");
-    const richterText = document.getElementById("richterText");
-    const names = ["ต่ำ", "ปานกลาง", "สูง"];
-
-    const savedSensitivity = localStorage.getItem("vibrationSensitivity");
-    const savedRichter = localStorage.getItem("richterThreshold");
-    if (savedSensitivity !== null) sensitivity.value = savedSensitivity;
-    if (savedRichter !== null) richter.value = savedRichter;
-
-    const refresh = () => {
-        sensitivityText.textContent = names[Number(sensitivity.value)] || "ปานกลาง";
-        richterText.textContent = Number(richter.value).toFixed(1);
-    };
-    sensitivity.addEventListener("input", () => {
-        localStorage.setItem("vibrationSensitivity", sensitivity.value);
-        refresh();
-    });
-    richter.addEventListener("input", () => {
-        localStorage.setItem("richterThreshold", richter.value);
-        refresh();
-    });
-    refresh();
-}
 
 /* =====================================================
    START
@@ -1186,17 +1196,32 @@ document.addEventListener(
         );
 
 
+        /*
+         * สร้าง Chart
+         */
+
         initChart();
 
+
+        /*
+         * เริ่ม animation graph
+         */
 
         requestAnimationFrame(
             smoothGraph
         );
 
 
-        loadDevice().then(() => loadHistory(20));
-        initSettings();
+        /*
+         * โหลด ESP32
+         */
 
+        loadDevice();
+
+
+        /*
+         * ดึงข้อมูลทุก 200ms
+         */
 
         setInterval(
             function() {
@@ -1209,4 +1234,3 @@ document.addEventListener(
 
     }
 );
-
