@@ -184,7 +184,7 @@
             <div class="panel database-table-panel">
                 <div class="panel-title-row">
                     <div class="panel-title">ข้อมูลแรงสั่นสะเทือนสะสม (ล่าสุด)</div>
-                    <button class="small-btn" id="loadAllBtn">ดูทั้งหมด</button>
+                    <button class="small-btn" id="loadAllBtn" on="openAllData()">ดูทั้งหมด</button>
                 </div>
                 <div class="table-wrapper">
                     <table>
@@ -208,8 +208,8 @@
                 <label for="exportDate">เลือกช่วงเวลา</label>
                 <input type="date" id="exportDate">
                 <div class="export-buttons">
-                    <button class="export-btn pdf-btn" id="exportPdfBtn">▣ PDF</button>
-                    <button class="export-btn excel-btn" id="exportExcelBtn">▤ Excel</button>
+                    <button class="export-btn pdf-btn" id="exportPdfBtn" onclick="exportPDFByDate()">▣ PDF</button>
+                    <button class="export-btn excel-btn" id="exportExcelBtn" onclick="exportExcelByDate()">▤ Excel</button>
                 </div>
                 <div class="server-box">
                     <span>สถานะเซิร์ฟเวอร์</span>
@@ -225,4 +225,103 @@
 
 <script src="/static/dashboard.js"></script>
 </body>
+<!-- =====================================================
+     ALL DATA MODAL
+===================================================== -->
+
+<div id="allDataModal" class="modal">
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <h2>
+                ข้อมูลแรงสั่นสะเทือนทั้งหมด
+            </h2>
+
+            <button
+                class="modal-close"
+                onclick="closeAllData()"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div class="modal-toolbar">
+
+            <div>
+                จำนวนข้อมูล:
+                <strong id="allDataCount">
+                    0
+                </strong>
+                รายการ
+            </div>
+
+
+            <div class="modal-export-buttons">
+
+                <button
+                    class="btn-pdf"
+                    onclick="exportAllPDF()"
+                >
+                    ▣ PDF
+                </button>
+
+
+                <button
+                    class="btn-excel"
+                    onclick="exportAllExcel()"
+                >
+                    ▤ Excel
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <div class="all-data-table-container">
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th>วันที่ / เวลา</th>
+
+                        <th>แกน X (G)</th>
+
+                        <th>แกน Y (G)</th>
+
+                        <th>แกน Z (G)</th>
+
+                        <th>PGA</th>
+
+                        <th>Peak PGA</th>
+
+                        <th>Pendulum</th>
+
+                        <th>สถานะ</th>
+
+                        <th>ทิศทาง</th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody id="allDataTable">
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
 </html>

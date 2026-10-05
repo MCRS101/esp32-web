@@ -1260,3 +1260,452 @@ document.addEventListener(
 
     }
 );
+
+/* =====================================================
+   OPEN ALL DATA
+===================================================== */
+
+async function openAllData() {
+
+    if (!DEVICE_ID) {
+
+        alert("ไม่พบ ESP32");
+
+        return;
+
+    }
+
+
+    const modal =
+        document.getElementById(
+            "allDataModal"
+        );
+
+    const table =
+        document.getElementById(
+            "allDataTable"
+        );
+
+
+    modal.classList.add("show");
+
+
+    table.innerHTML = `
+        <tr>
+            <td colspan="9">
+                กำลังโหลดข้อมูล...
+            </td>
+        </tr>
+    `;
+
+
+    try {
+
+        const response = await fetch(
+            `/api/device/${encodeURIComponent(DEVICE_ID)}/history`,
+            {
+                cache: "no-store"
+            }
+        );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                `HTTP ${response.status}`
+            );
+
+        }
+
+
+        const result =
+            await response.json();
+
+
+        console.log(
+            "ALL DATA:",
+            result
+        );
+
+
+        if (!result.success) {
+
+            throw new Error(
+                result.message ||
+                "โหลดข้อมูลไม่สำเร็จ"
+            );
+
+        }
+
+
+        const data =
+            result.data || [];
+
+
+        document.getElementById(
+            "allDataCount"
+        ).textContent = data.length;
+
+
+        table.innerHTML = "";
+
+
+        if (data.length === 0) {
+
+            table.innerHTML = `
+                <tr>
+                    <td colspan="9">
+                        ไม่มีข้อมูล
+                    </td>
+                </tr>
+            `;
+
+            return;
+
+        }
+
+
+        data.forEach(function(row) {
+
+            const tr =
+                document.createElement("tr");
+
+
+            tr.innerHTML = `
+
+                <td>
+                    ${formatDateTime(
+                        row.timestamp
+                    )}
+                </td>
+
+                <td>
+                    ${Number(
+                        row.accel_x || 0
+                    ).toFixed(4)}
+                </td>
+
+                <td>
+                    ${Number(
+                        row.accel_y || 0
+                    ).toFixed(4)}
+                </td>
+
+                <td>
+                    ${Number(
+                        row.accel_z || 0
+                    ).toFixed(4)}
+                </td>
+
+                <td>
+                    ${Number(
+                        row.pga || 0
+                    ).toFixed(4)}
+                </td>
+
+                <td>
+                    ${Number(
+                        row.peak_pga || 0
+                    ).toFixed(4)}
+                </td>
+
+                <td>
+                    ${Number(
+                        row.pendulum || 0
+                    ).toFixed(2)}
+                </td>
+
+                <td>
+                    ${row.level || "-"}
+                </td>
+
+                <td>
+                    ${row.direction || "-"}
+                </td>
+
+            `;
+
+
+            table.appendChild(tr);
+
+        });
+
+
+    }
+    catch (error) {
+
+        console.error(
+            "ALL DATA ERROR:",
+            error
+        );
+
+
+        table.innerHTML = `
+
+            <tr>
+
+                <td colspan="9">
+
+                    โหลดข้อมูลไม่สำเร็จ
+
+                </td>
+
+            </tr>
+
+        `;
+
+    }
+
+}
+
+
+/* =====================================================
+   CLOSE ALL DATA
+===================================================== */
+
+function closeAllData() {
+
+    const modal =
+        document.getElementById(
+            "allDataModal"
+        );
+
+    modal.classList.remove("show");
+
+}
+
+
+/* =====================================================
+   CLOSE WHEN CLICK OUTSIDE
+===================================================== */
+
+document.addEventListener(
+    "click",
+    function(event) {
+
+        const modal =
+            document.getElementById(
+                "allDataModal"
+            );
+
+
+        if (
+            event.target === modal
+        ) {
+
+            closeAllData();
+
+        }
+
+    }
+);
+
+
+/* =====================================================
+   FORMAT DATE TIME
+===================================================== */
+
+function formatDateTime(
+    timestamp
+) {
+
+    if (!timestamp) {
+
+        return "-";
+
+    }
+
+
+    const date =
+        new Date(timestamp);
+
+
+    if (isNaN(date.getTime())) {
+
+        return timestamp;
+
+    }
+
+
+    const day =
+        String(
+            date.getDate()
+        ).padStart(2, "0");
+
+
+    const month =
+        String(
+            date.getMonth() + 1
+        ).padStart(2, "0");
+
+
+    const year =
+        date.getFullYear();
+
+
+    const hours =
+        String(
+            date.getHours()
+        ).padStart(2, "0");
+
+
+    const minutes =
+        String(
+            date.getMinutes()
+        ).padStart(2, "0");
+
+
+    const seconds =
+        String(
+            date.getSeconds()
+        ).padStart(2, "0");
+
+
+    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+
+}
+
+/* =====================================================
+   EXPORT PDF BY DATE
+===================================================== */
+
+function exportPDFByDate() {
+
+    if (!DEVICE_ID) {
+
+        alert("ไม่พบ ESP32");
+
+        return;
+
+    }
+
+
+    const date =
+        document.getElementById(
+            "exportDate"
+        ).value;
+
+
+    if (!date) {
+
+        alert("กรุณาเลือกวันที่");
+
+        return;
+
+    }
+
+
+    const url =
+        `/api/device/${encodeURIComponent(
+            DEVICE_ID
+        )}/export/pdf?date=${encodeURIComponent(
+            date
+        )}`;
+
+
+    window.open(
+        url,
+        "_blank"
+    );
+
+}
+
+
+/* =====================================================
+   EXPORT EXCEL BY DATE
+===================================================== */
+
+function exportExcelByDate() {
+
+    if (!DEVICE_ID) {
+
+        alert("ไม่พบ ESP32");
+
+        return;
+
+    }
+
+
+    const date =
+        document.getElementById(
+            "exportDate"
+        ).value;
+
+
+    if (!date) {
+
+        alert("กรุณาเลือกวันที่");
+
+        return;
+
+    }
+
+
+    const url =
+        `/api/device/${encodeURIComponent(
+            DEVICE_ID
+        )}/export/excel?date=${encodeURIComponent(
+            date
+        )}`;
+
+
+    window.location.href =
+        url;
+
+}
+
+
+/* =====================================================
+   EXPORT ALL PDF
+===================================================== */
+
+function exportAllPDF() {
+
+    if (!DEVICE_ID) {
+
+        alert("ไม่พบ ESP32");
+
+        return;
+
+    }
+
+
+    const url =
+        `/api/device/${encodeURIComponent(
+            DEVICE_ID
+        )}/export/pdf`;
+
+
+    window.open(
+        url,
+        "_blank"
+    );
+
+}
+
+
+/* =====================================================
+   EXPORT ALL EXCEL
+===================================================== */
+
+function exportAllExcel() {
+
+    if (!DEVICE_ID) {
+
+        alert("ไม่พบ ESP32");
+
+        return;
+
+    }
+
+
+    const url =
+        `/api/device/${encodeURIComponent(
+            DEVICE_ID
+        )}/export/excel`;
+
+
+    window.location.href =
+        url;
+
+}
