@@ -17,7 +17,7 @@ let lastChartPointTime = 0;
 let isFetching = false;
 
 let lastTableTimestamp = null;
-
+let pendulumAnimationTime = 0;
 const MAX_CHART_POINTS = 60;
 
 
@@ -599,8 +599,7 @@ function updateDashboard(data) {
     ================================================= */
 
     updatePendulum(
-        pendulum,
-        direction
+        data.pendulum
     );
 
 
@@ -693,68 +692,39 @@ function updateCompass(direction) {
    PENDULUM
 ===================================================== */
 
-function updatePendulum(
-    value,
-    direction
-) {
+function updatePendulum(pendulum) {
 
     const vector =
-        document.getElementById(
-            "realtimeVector"
+        document.getElementById("realtimeVector");
+
+    let value =
+        Number(pendulum) || 0;
+
+    /*
+     * จำกัดค่า 0 - 2.0
+     */
+    value =
+        Math.max(
+            0,
+            Math.min(value, 2.0)
         );
 
+    /*
+     * แสดงค่า Pendulum
+     */
     if (vector) {
 
         vector.textContent =
-            Number(value).toFixed(2);
+            value.toFixed(2);
 
     }
 
-
-    const rod =
-        document.getElementById(
-            "pendulumRod"
-        );
-
-    if (!rod) {
-
-        return;
-
-    }
-
-
-    const angles = {
-
-        "N": -10,
-
-        "NE": 10,
-
-        "E": 20,
-
-        "SE": 10,
-
-        "S": 0,
-
-        "SW": -10,
-
-        "W": -20,
-
-        "NW": -10,
-
-        "CENTER": 0
-
-    };
-
-
-    const angle =
-        angles[direction] ?? 0;
-
-
-    rod.style.transform =
-        `translateX(-50%) rotate(${angle}deg)`;
-
+    /*
+     * เก็บค่าความแรงของการแกว่ง
+     */
+    targetPendulum =
+        value;
 }
-
 
 /* =====================================================
    SENSOR BARS
@@ -894,7 +864,49 @@ function smoothGraph(timestamp) {
 
     currentPendulum +=
         pendulumDifference * 0.15;
+/* =================================================
+   PENDULUM SWING
+================================================= */
 
+pendulumAnimationTime += 0.08;
+
+/*
+ * 0.0 = ไม่แกว่ง
+ * 2.0 = แกว่งแรงสุด
+ */
+const swingStrength =
+    Math.min(
+        currentPendulum / 2.0,
+        1.0
+    );
+
+/*
+ * มุมสูงสุด 35 องศา
+ */
+const maxAngle = 35;
+
+const swingAngle =
+    Math.sin(
+        pendulumAnimationTime
+    ) *
+    maxAngle *
+    swingStrength;
+
+
+/*
+ * หมุนลูกตุ้มซ้าย - ขวา
+ */
+const rod =
+    document.getElementById(
+        "pendulumRod"
+    );
+
+if (rod) {
+
+    rod.style.transform =
+        `rotate(${swingAngle}deg)`;
+
+}
 
     if (
         Math.abs(pendulumDifference) < 0.00001
