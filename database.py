@@ -1,59 +1,150 @@
-import sqlite3
+import os
+import mysql.connector
 
-DATABASE = "devices.db"
 
+# =========================================================
+# MYSQL CONFIG
+# =========================================================
+
+MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
+MYSQL_PORT = int(os.getenv("MYSQL_PORT", "3306"))
+MYSQL_USER = os.getenv("MYSQL_USER", "root")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
+MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", "esp32_db")
+
+
+# =========================================================
+# DATABASE CONNECTION
+# =========================================================
 
 def get_connection():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
+
+    conn = mysql.connector.connect(
+        host=MYSQL_HOST,
+        port=MYSQL_PORT,
+        user=MYSQL_USER,
+        password=MYSQL_PASSWORD,
+        database=MYSQL_DATABASE
+    )
+
     return conn
 
 
+# =========================================================
+# INIT DATABASE
+# =========================================================
+
 def init_database():
+
+    # -----------------------------------------
+    # เชื่อมต่อ MySQL โดยยังไม่เลือก Database
+    # -----------------------------------------
+
+    conn = mysql.connector.connect(
+        host=MYSQL_HOST,
+        port=MYSQL_PORT,
+        user=MYSQL_USER,
+        password=MYSQL_PASSWORD
+    )
+
+    cursor = conn.cursor()
+
+    # -----------------------------------------
+    # สร้าง Database ถ้ายังไม่มี
+    # -----------------------------------------
+
+    cursor.execute(
+        f"""
+        CREATE DATABASE IF NOT EXISTS `{MYSQL_DATABASE}`
+        CHARACTER SET utf8mb4
+        COLLATE utf8mb4_unicode_ci
+        """
+    )
+
+    cursor.close()
+    conn.close()
+
+
+    # -----------------------------------------
+    # เชื่อมต่อ Database
+    # -----------------------------------------
+
     conn = get_connection()
+    cursor = conn.cursor()
 
-    # ==============================
-    # DEVICE
-    # ==============================
-    conn.execute("""
+
+    # =====================================================
+    # DEVICES
+    # =====================================================
+
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS devices (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            device_id TEXT UNIQUE NOT NULL,
-            device_token TEXT NOT NULL,
-            status TEXT DEFAULT 'offline',
-            ip_address TEXT,
-            last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
+
+            id INT AUTO_INCREMENT PRIMARY KEY,
+
+            device_id VARCHAR(100) UNIQUE NOT NULL,
+
+            device_token VARCHAR(255) NOT NULL,
+
+            status VARCHAR(20) DEFAULT 'offline',
+
+            ip_address VARCHAR(45),
+
+            last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                ON UPDATE CURRENT_TIMESTAMP
+
         )
     """)
 
-    # ==============================
+
+    # =====================================================
     # SENSOR DATA
-    # ==============================
-    conn.execute("""
+    # =====================================================
+
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS sensor_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-            device_id TEXT NOT NULL,
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
 
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            device_id VARCHAR(100) NOT NULL,
 
-            accel_x REAL DEFAULT 0,
-            accel_y REAL DEFAULT 0,
-            accel_z REAL DEFAULT 0,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-            pga REAL DEFAULT 0,
-            peak_pga REAL DEFAULT 0,
-            avg_pga REAL DEFAULT 0,
+            accel_x DOUBLE DEFAULT 0,
 
-            pendulum REAL DEFAULT 0,
+            accel_y DOUBLE DEFAULT 0,
 
-            level TEXT DEFAULT 'LOW',
+            accel_z DOUBLE DEFAULT 0,
 
-            direction TEXT DEFAULT '-',
+            pga DOUBLE DEFAULT 0,
 
-            estimated_ml REAL DEFAULT 0
+            peak_pga DOUBLE DEFAULT 0,
+
+            avg_pga DOUBLE DEFAULT 0,
+
+            pendulum DOUBLE DEFAULT 0,
+
+            level VARCHAR(20) DEFAULT 'LOW',
+
+            direction VARCHAR(10) DEFAULT '-',
+
+            estimated_ml DOUBLE DEFAULT 0,
+
+            INDEX idx_sensor_device_id (device_id),
+
+            INDEX idx_sensor_timestamp (timestamp)
+
         )
     """)
+
 
     conn.commit()
+
+    cursor.close()
     conn.close()
+
+
+    print("====================================")
+    print("MYSQL DATABASE READY")
+    print("Database:", MYSQL_DATABASE)
+    print("====================================")
