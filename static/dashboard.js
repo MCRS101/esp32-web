@@ -553,7 +553,7 @@ function updateDashboard(data) {
 
 
     document
-        .getElementById("direction")
+        .getElementById("realtimeDirection")
         .textContent =
             direction;
 
@@ -929,32 +929,69 @@ function addTableRow(data) {
    DIRECTION
 ===================================================== */
 
-function updateDirectionStyle(
-    direction
-) {
+function updateDirectionStyle(direction) {
 
-    const center =
+
+    const directionElement =
         document.getElementById(
-            "direction"
+            "realtimeDirection"
         );
 
+    if (!directionElement) {
+        return;
+    }
 
-    center.style.transform =
+    directionElement.textContent =
+        direction;
+
+    directionElement.style.transform =
         "scale(1.05)";
 
+    setTimeout(function() {
 
-    setTimeout(
-        function() {
+        directionElement.style.transform =
+            "scale(1)";
 
-            center.style.transform =
-                "scale(1)";
+    }, 150);
 
-        },
-        150
-    );
+
+    /* ===============================
+       Compass Needle
+    =============================== */
+
+    const needle =
+        document.getElementById(
+            "directionNeedle"
+        );
+
+    if (!needle) {
+        return;
+    }
+
+
+    const directionAngles = {
+
+        "N": 0,
+        "NE": 45,
+        "E": 90,
+        "SE": 135,
+        "S": 180,
+        "SW": 225,
+        "W": 270,
+        "NW": 315,
+        "CENTER": 0
+
+    };
+
+
+    const angle =
+        directionAngles[direction] ?? 0;
+
+
+    needle.style.transform =
+        `translate(-50%, -100%) rotate(${angle}deg)`;
 
 }
-
 
 /* =====================================================
    ONLINE
