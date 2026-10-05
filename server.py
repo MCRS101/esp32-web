@@ -1,17 +1,30 @@
-from flask import Flask, render_template, request, jsonify
-from database import get_connection, init_database
-import secrets
-import json
 import os
+
+from flask import Flask, request, jsonify, render_template
+from database import get_connection, init_database
+
+import secrets
+import datetime
+
+
 app = Flask(__name__)
 
+# สร้าง Database ตอนเริ่ม Server
 init_database()
 
+
+# =========================================================
+# HOME
+# =========================================================
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
+
+# =========================================================
+# REGISTER ESP32
+# =========================================================
 
 @app.route("/api/device/register", methods=["POST"])
 def register_device():
@@ -34,121 +47,81 @@ def register_device():
 
     conn = get_connection()
 
+    # ตรวจสอบว่ามี device อยู่แล้วหรือไม่
     device = conn.execute(
-        "SELECT * FROM devices WHERE device_id = ?",
+        """
+        SELECT *
+        FROM devices
+        WHERE device_id = ?
+        """,
         (device_id,)
     ).fetchone()
 
     if device:
 
-        conn.execute("""
+        conn.execute(
+            """
             UPDATE devices
             SET status = 'online',
                 ip_address = ?,
                 last_seen = CURRENT_TIMESTAMP
             WHERE device_id = ?
-        """, (
-            request.remote_addr,
-            device_id
-        ))
+            """,
+            (
+                request.remote_addr,
+                device_id
+            )
+        )
 
-        token = device["device_token"]
-
-    else:
-
-        token = secrets.token_hex(32)
-
-        conn.execute("""
-            INSERT INTO devices
-            (device_id, device_token, status, ip_address)
-            VALUES (?, ?, 'online', ?)
-        """, (
-            device_id,
-            token,
-            request.remote_addr
-        ))
-
-    conn.commit()
-    conn.close()
-
-    print(f"Device connected: {device_id}")
-
-    return jsonify({
-        "success": True,
-        "device_id": device_id
-    })
-
-
-@app.route("/api/device/<device_id>/command", methods=["GET"])
-def get_command(device_id):
-
-    conn = get_connection()
-
-    device = conn.execute(
-        "SELECT * FROM devices WHERE device_id = ?",
-        (device_id,)
-    ).fetchone()
-
-    if not device:
-        conn.close()
-
-        return jsonify({
-            "success": False,
-            "message": "Device not found"
-        }), 404
-
-    command = conn.execute("""
-        SELECT *
-        FROM commands
-        WHERE device_id = ?
-        AND status = 'pending'
-        ORDER BY id ASC
-        LIMIT 1
-    """, (
-        device_id,
-    )).fetchone()
-
-    if not command:
-
+        conn.commit()
         conn.close()
 
         return jsonify({
             "success": True,
-            "command": None
+            "message": "Device already registered",
+            "device_id": device_id
         })
 
-    conn.execute("""
-        UPDATE commands
-        SET status = 'sent'
-        WHERE id = ?
-    """, (
-        command["id"],
-    ))
+
+    # Device ใหม่
+    device_token = secrets.token_hex(32)
+
+    conn.execute(
+        """
+        INSERT INTO devices
+        (
+            device_id,
+            device_token,
+            status,
+            ip_address,
+            last_seen
+        )
+        VALUES (?, ?, 'online', ?, CURRENT_TIMESTAMP)
+        """,
+        (
+            device_id,
+            device_token,
+            request.remote_addr
+        )
+    )
 
     conn.commit()
     conn.close()
 
-    payload = {}
-
-    if command["payload"]:
-        payload = json.loads(command["payload"])
-
-    print(
-        f"Sending command: "
-        f"{device_id} -> {command['command']}"
-    )
-
     return jsonify({
         "success": True,
-        "command": command["command"],
-        "payload": payload,
-        "command_id": command["id"]
+        "message": "Device registered",
+        "device_id": device_id,
+        "device_token": device_token
     })
- 
 
 
-@app.route("/api/device/<device_id>/gpio", methods=["POST"])
-def gpio_control(device_id):
+# =========================================================
+# RECEIVE SENSOR DATA
+# =========================================================
+
+@app.route("/api/device/data", methods=["POST"])
+def receive_sensor_data():
 
     data = request.get_json(silent=True)
 
@@ -158,109 +131,232 @@ def gpio_control(device_id):
             "message": "Invalid JSON"
         }), 400
 
-    state = data.get("state")
 
-    if state not in ["on", "off"]:
+    device_id = data.get("device_id")
 
+    if not device_id:
         return jsonify({
             "success": False,
-            "message": "State must be on or off"
+            "message": "device_id is required"
         }), 400
+
+
+    # -------------------------------------
+    # รับค่าจาก ESP32
+    # -------------------------------------
+
+    accel_x = float(data.get("accel_x", 0))
+    accel_y = float(data.get("accel_y", 0))
+    accel_z = float(data.get("accel_z", 0))
+
+    pga = float(data.get("pga", 0))
+    peak_pga = float(data.get("peak_pga", 0))
+    avg_pga = float(data.get("avg_pga", 0))
+
+    pendulum = float(data.get("pendulum", 0))
+
+    level = data.get("level", "LOW")
+
+    direction = data.get(
+        "direction",
+        "-"
+    )
+
+    estimated_ml = float(
+        data.get("estimated_ml", 0)
+    )
+
 
     conn = get_connection()
 
-    device = conn.execute(
-        "SELECT * FROM devices WHERE device_id = ?",
-        (device_id,)
-    ).fetchone()
 
-    if not device:
+    # -------------------------------------
+    # บันทึก Sensor Data
+    # -------------------------------------
 
-        conn.close()
-
-        return jsonify({
-            "success": False,
-            "message": "Device not found"
-        }), 404
-
-    command = (
-        "gpio_on"
-        if state == "on"
-        else "gpio_off"
+    conn.execute(
+        """
+        INSERT INTO sensor_data
+        (
+            device_id,
+            accel_x,
+            accel_y,
+            accel_z,
+            pga,
+            peak_pga,
+            avg_pga,
+            pendulum,
+            level,
+            direction,
+            estimated_ml
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            device_id,
+            accel_x,
+            accel_y,
+            accel_z,
+            pga,
+            peak_pga,
+            avg_pga,
+            pendulum,
+            level,
+            direction,
+            estimated_ml
+        )
     )
 
-    conn.execute("""
-        INSERT INTO commands
-        (device_id, command, payload, status)
-        VALUES (?, ?, ?, 'pending')
-    """, (
-        device_id,
-        command,
-        json.dumps({
-            "gpio": 2,
-            "state": state
-        })
-    ))
+
+    # -------------------------------------
+    # Update Device Status
+    # -------------------------------------
+
+    conn.execute(
+        """
+        UPDATE devices
+        SET status = 'online',
+            ip_address = ?,
+            last_seen = CURRENT_TIMESTAMP
+        WHERE device_id = ?
+        """,
+        (
+            request.remote_addr,
+            device_id
+        )
+    )
+
 
     conn.commit()
     conn.close()
 
-    print(
-        f"New command: "
-        f"{device_id} -> {command}"
-    )
+
+    # -------------------------------------
+    # Response
+    # -------------------------------------
 
     return jsonify({
         "success": True,
-        "command": command,
-        "gpio": 2,
-        "state": state
+        "message": "Sensor data received",
+        "alert": level in [
+            "HIGH",
+            "SEVERE"
+        ]
     })
 
 
-@app.route("/api/devices")
-def devices():
+# =========================================================
+# GET LATEST SENSOR DATA
+# =========================================================
+
+@app.route("/api/device/<device_id>/latest", methods=["GET"])
+def get_latest(device_id):
 
     conn = get_connection()
 
-    rows = conn.execute("""
-        SELECT
-            device_id,
-            status,
-            ip_address,
-            last_seen
-        FROM devices
+    row = conn.execute(
+        """
+        SELECT *
+        FROM sensor_data
+        WHERE device_id = ?
         ORDER BY id DESC
-    """).fetchall()
+        LIMIT 1
+        """,
+        (device_id,)
+    ).fetchone()
 
     conn.close()
 
-    result = []
 
-    for row in rows:
+    if not row:
+        return jsonify({
+            "success": False,
+            "message": "No data"
+        }), 404
 
-        result.append({
-            "device_id": row["device_id"],
-            "status": row["status"],
-            "ip_address": row["ip_address"],
-            "last_seen": row["last_seen"]
-        })
 
-    return jsonify(result)
+    return jsonify({
+        "success": True,
+        "data": dict(row)
+    })
 
+
+# =========================================================
+# GET SENSOR HISTORY
+# =========================================================
+
+@app.route("/api/device/<device_id>/history", methods=["GET"])
+def get_history(device_id):
+
+    limit = request.args.get(
+        "limit",
+        default=100,
+        type=int
+    )
+
+    conn = get_connection()
+
+    rows = conn.execute(
+        """
+        SELECT *
+        FROM sensor_data
+        WHERE device_id = ?
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (
+            device_id,
+            limit
+        )
+    ).fetchall()
+
+    conn.close()
+
+
+    return jsonify({
+        "success": True,
+        "data": [
+            dict(row)
+            for row in rows
+        ]
+    })
+
+
+# =========================================================
+# GET DEVICES
+# =========================================================
+
+@app.route("/api/devices", methods=["GET"])
+def get_devices():
+
+    conn = get_connection()
+
+    rows = conn.execute(
+        """
+        SELECT *
+        FROM devices
+        ORDER BY id DESC
+        """
+    ).fetchall()
+
+    conn.close()
+
+
+    return jsonify({
+        "success": True,
+        "devices": [
+            dict(row)
+            for row in rows
+        ]
+    })
+
+
+# =========================================================
+# RUN SERVER
+# =========================================================
 
 if __name__ == "__main__":
-
     port = int(os.environ.get("PORT", 5000))
-
-    print()
-    print("======================================")
-    print("       ESP32 CLOUD SERVER")
-    print("======================================")
-    print(f"Port: {port}")
-    print("======================================")
-    print()
-
     app.run(
         host="0.0.0.0",
         port=port,

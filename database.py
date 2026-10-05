@@ -12,6 +12,9 @@ def get_connection():
 def init_database():
     conn = get_connection()
 
+    # ==============================
+    # DEVICE
+    # ==============================
     conn.execute("""
         CREATE TABLE IF NOT EXISTS devices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,14 +26,32 @@ def init_database():
         )
     """)
 
+    # ==============================
+    # SENSOR DATA
+    # ==============================
     conn.execute("""
-        CREATE TABLE IF NOT EXISTS commands (
+        CREATE TABLE IF NOT EXISTS sensor_data (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+
             device_id TEXT NOT NULL,
-            command TEXT NOT NULL,
-            payload TEXT,
-            status TEXT DEFAULT 'pending',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+            accel_x REAL DEFAULT 0,
+            accel_y REAL DEFAULT 0,
+            accel_z REAL DEFAULT 0,
+
+            pga REAL DEFAULT 0,
+            peak_pga REAL DEFAULT 0,
+            avg_pga REAL DEFAULT 0,
+
+            pendulum REAL DEFAULT 0,
+
+            level TEXT DEFAULT 'LOW',
+
+            direction TEXT DEFAULT '-',
+
+            estimated_ml REAL DEFAULT 0
         )
     """)
 

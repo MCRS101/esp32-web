@@ -10,244 +10,2517 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>ESP32 Control</title>
+    <title>ESP32 Vibration Monitor</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 
     <style>
 
         * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
+
 
         body {
-            margin: 0;
 
-            min-height: 100vh;
+            font-family:
+                Arial,
+                sans-serif;
+
+            background: #f5f7fb;
+
+            color: #1f2937;
+
+        }
+
+
+        /* ================= HEADER ================= */
+
+        header {
+
+            background: #111827;
+
+            color: white;
+
+            padding: 18px 30px;
 
             display: flex;
-            justify-content: center;
+
+            justify-content: space-between;
+
             align-items: center;
 
-            font-family: Arial, sans-serif;
-
-            background: #111;
-            color: white;
         }
 
-        .container {
-            width: 90%;
-            max-width: 450px;
 
-            padding: 40px;
+        .logo {
 
-            background: #1e1e1e;
+            font-size: 22px;
 
-            border-radius: 20px;
+            font-weight: bold;
 
-            text-align: center;
-
-            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
         }
 
-        h1 {
-            margin-bottom: 10px;
+
+        .server-status {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            font-size: 14px;
+
         }
 
-        .device {
-            color: #aaa;
-            margin-bottom: 30px;
-        }
 
-        .led {
-            width: 120px;
-            height: 120px;
+        .status-dot {
 
-            margin: 0 auto 25px;
+            width: 10px;
+
+            height: 10px;
+
+            background: #22c55e;
 
             border-radius: 50%;
 
-            background: #333;
-
-            transition: 0.3s;
         }
 
-        .led.on {
-            background: yellow;
 
-            box-shadow:
-                0 0 20px yellow,
-                0 0 40px yellow,
-                0 0 80px yellow;
+        /* ================= CONTAINER ================= */
+
+        .container {
+
+            max-width: 1400px;
+
+            margin: auto;
+
+            padding: 25px;
+
         }
 
-        .status {
-            font-size: 22px;
 
-            margin-bottom: 30px;
-        }
+        /* ================= DEVICE ================= */
 
-        .buttons {
+        .device-bar {
+
+            background: white;
+
+            border-radius: 12px;
+
+            padding: 18px 22px;
+
+            margin-bottom: 20px;
+
             display: flex;
 
-            gap: 15px;
+            justify-content: space-between;
+
+            align-items: center;
+
+            box-shadow:
+                0 2px 10px
+                rgba(0,0,0,0.05);
+
         }
 
-        button {
-            flex: 1;
 
-            padding: 15px;
-
-            border: none;
-
-            border-radius: 10px;
+        .device-name {
 
             font-size: 18px;
 
-            cursor: pointer;
+            font-weight: bold;
+
+        }
+
+
+        .device-online {
+
+            color: #16a34a;
+
+            font-weight: bold;
+
+        }
+
+
+        .device-offline {
+
+            color: #dc2626;
+
+            font-weight: bold;
+
+        }
+
+
+        /* ================= CARDS ================= */
+
+        .cards {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(4, 1fr);
+
+            gap: 18px;
+
+            margin-bottom: 20px;
+
+        }
+
+
+        .card {
+
+            background: white;
+
+            border-radius: 12px;
+
+            padding: 22px;
+
+            box-shadow:
+                0 2px 10px
+                rgba(0,0,0,0.05);
+
+        }
+
+
+        .card-title {
+
+            font-size: 14px;
+
+            color: #6b7280;
+
+            margin-bottom: 10px;
+
+        }
+
+
+        .card-value {
+
+            font-size: 30px;
+
+            font-weight: bold;
+
+        }
+
+
+        .unit {
+
+            font-size: 15px;
+
+            color: #6b7280;
+
+        }
+
+
+        /* ================= MAIN ================= */
+
+        .main-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                2fr 1fr;
+
+            gap: 20px;
+
+        }
+
+
+        .panel {
+
+            background: white;
+
+            border-radius: 12px;
+
+            padding: 22px;
+
+            box-shadow:
+                0 2px 10px
+                rgba(0,0,0,0.05);
+
+            margin-bottom: 20px;
+
+        }
+
+
+        .panel-title {
+
+            font-size: 18px;
+
+            font-weight: bold;
+
+            margin-bottom: 20px;
+
+        }
+
+
+        /* ================= GRAPH ================= */
+
+        .chart-container {
+
+            position: relative;
+
+            height: 350px;
+
+            width: 100%;
+
+        }
+
+
+        /* ================= SENSOR ================= */
+
+        .sensor-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(3, 1fr);
+
+            gap: 12px;
+
+        }
+
+
+        .sensor-box {
+
+            background: #f9fafb;
+
+            border-radius: 10px;
+
+            padding: 18px;
+
+            text-align: center;
+
+        }
+
+
+        .sensor-label {
+
+            font-size: 13px;
+
+            color: #6b7280;
+
+        }
+
+
+        .sensor-value {
+
+            font-size: 24px;
+
+            font-weight: bold;
+
+            margin-top: 8px;
+
+        }
+
+
+        /* ================= LEVEL ================= */
+
+        .level {
+
+            padding: 15px;
+
+            border-radius: 10px;
+
+            text-align: center;
+
+            font-size: 22px;
+
+            font-weight: bold;
+
+        }
+
+
+        .LOW {
+
+            background: #dcfce7;
+
+            color: #15803d;
+
+        }
+
+
+        .MODERATE {
+
+            background: #fef9c3;
+
+            color: #a16207;
+
+        }
+
+
+        .HIGH {
+
+            background: #fed7aa;
+
+            color: #c2410c;
+
+        }
+
+
+        .SEVERE {
+
+            background: #fee2e2;
+
+            color: #dc2626;
+
+        }
+
+
+        /* ================= DIRECTION ================= */
+
+        .direction {
+
+            width: 180px;
+
+            height: 180px;
+
+            border:
+                3px solid
+                #d1d5db;
+
+            border-radius: 50%;
+
+            margin: auto;
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+            position: relative;
+
+        }
+
+
+        .direction span {
+
+            position: absolute;
+
+            font-weight: bold;
+
+        }
+
+
+        .north {
+
+            top: 10px;
+
+        }
+
+
+        .south {
+
+            bottom: 10px;
+
+        }
+
+
+        .east {
+
+            right: 10px;
+
+        }
+
+
+        .west {
+
+            left: 10px;
+
+        }
+
+
+        .direction-center {
+
+            width: 65px;
+
+            height: 65px;
+
+            background: #111827;
 
             color: white;
+
+            border-radius: 50%;
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+            font-size: 13px;
+
+            font-weight: bold;
+
+            transition:
+                transform 0.2s ease;
+
         }
 
-        .on-button {
-            background: #16a34a;
+
+        /* ================= STATUS ================= */
+
+        .status-row {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            padding: 10px 0;
+
+            border-bottom:
+                1px solid
+                #e5e7eb;
+
         }
 
-        .off-button {
-            background: #dc2626;
+
+        .status-online {
+
+            color: #16a34a;
+
         }
 
-        button:hover {
-            opacity: 0.8;
+
+        .status-offline {
+
+            color: #dc2626;
+
         }
 
-        button:active {
-            transform: scale(0.97);
+
+        /* ================= TABLE ================= */
+
+        .table-wrapper {
+
+            overflow-x: auto;
+
+        }
+
+
+        table {
+
+            width: 100%;
+
+            border-collapse: collapse;
+
+        }
+
+
+        th {
+
+            background: #f3f4f6;
+
+            padding: 12px;
+
+            text-align: left;
+
+            font-size: 13px;
+
+        }
+
+
+        td {
+
+            padding: 12px;
+
+            border-bottom:
+                1px solid
+                #e5e7eb;
+
+            font-size: 13px;
+
+        }
+
+
+        /* ================= RESPONSIVE ================= */
+
+        @media(max-width: 1000px) {
+
+            .cards {
+
+                grid-template-columns:
+                    repeat(2, 1fr);
+
+            }
+
+
+            .main-grid {
+
+                grid-template-columns: 1fr;
+
+            }
+
+        }
+
+
+        @media(max-width: 600px) {
+
+            .cards {
+
+                grid-template-columns: 1fr;
+
+            }
+
+
+            .sensor-grid {
+
+                grid-template-columns: 1fr;
+
+            }
+
+
+            header {
+
+                padding: 15px;
+
+            }
+
+
+            .container {
+
+                padding: 15px;
+
+            }
+
         }
 
     </style>
 
 </head>
 
+
 <body>
+
+
+<!-- =====================================================
+     HEADER
+===================================================== -->
+
+<header>
+
+    <div class="logo">
+
+        ESP32 Vibration Monitor
+
+    </div>
+
+
+    <div class="server-status">
+
+        <div class="status-dot"></div>
+
+        <span>
+
+            Server Online
+
+        </span>
+
+    </div>
+
+</header>
+
+
 
 <div class="container">
 
-    <h1>ESP32 CONTROL</h1>
 
-    <div class="device">
-        Device: ESP32-TEST-001
+    <!-- =================================================
+         DEVICE
+    ================================================= -->
+
+    <div class="device-bar">
+
+        <div>
+
+            <div
+                class="device-name"
+                id="deviceName"
+            >
+
+                Loading...
+
+            </div>
+
+
+            <small>
+
+                Sensor Monitoring System
+
+            </small>
+
+        </div>
+
+
+        <div>
+
+            <span
+                id="deviceStatus"
+                class="device-offline"
+            >
+
+                ● Checking...
+
+            </span>
+
+        </div>
+
     </div>
 
-    <div id="led" class="led"></div>
 
-    <div id="status" class="status">
-        GPIO 2 OFF
+
+    <!-- =================================================
+         MAIN VALUES
+    ================================================= -->
+
+    <div class="cards">
+
+
+        <!-- PGA -->
+
+        <div class="card">
+
+            <div class="card-title">
+
+                PGA
+
+            </div>
+
+
+            <div>
+
+                <span
+                    id="pga"
+                    class="card-value"
+                >
+
+                    0.000
+
+                </span>
+
+
+                <span class="unit">
+
+                    G
+
+                </span>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- PENDULUM -->
+
+        <div class="card">
+
+            <div class="card-title">
+
+                Pendulum
+
+            </div>
+
+
+            <div>
+
+                <span
+                    id="pendulum"
+                    class="card-value"
+                >
+
+                    0.00
+
+                </span>
+
+
+                <span class="unit">
+
+                    cm
+
+                </span>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- PEAK -->
+
+        <div class="card">
+
+            <div class="card-title">
+
+                Peak PGA
+
+            </div>
+
+
+            <div>
+
+                <span
+                    id="peakPga"
+                    class="card-value"
+                >
+
+                    0.000
+
+                </span>
+
+
+                <span class="unit">
+
+                    G
+
+                </span>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ML -->
+
+        <div class="card">
+
+            <div class="card-title">
+
+                Estimated ML
+
+            </div>
+
+
+            <div>
+
+                <span
+                    id="ml"
+                    class="card-value"
+                >
+
+                    0.00
+
+                </span>
+
+            </div>
+
+        </div>
+
+
     </div>
 
-    <div class="buttons">
 
-        <button
-            class="on-button"
-            onclick="gpioOn()"
-        >
-            เปิด
-        </button>
 
-        <button
-            class="off-button"
-            onclick="gpioOff()"
-        >
-            ปิด
-        </button>
+    <!-- =================================================
+         MAIN GRID
+    ================================================= -->
+
+    <div class="main-grid">
+
+
+        <!-- =================================================
+             LEFT
+        ================================================= -->
+
+        <div>
+
+
+            <!-- GRAPH -->
+
+            <div class="panel">
+
+                <div class="panel-title">
+
+                    Real-time Vibration
+
+                </div>
+
+
+                <div class="chart-container">
+
+                    <canvas
+                        id="vibrationChart"
+                    ></canvas>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- SENSOR DATA -->
+
+            <div class="panel">
+
+                <div class="panel-title">
+
+                    Sensor Data
+
+                </div>
+
+
+                <div class="sensor-grid">
+
+
+                    <div class="sensor-box">
+
+                        <div class="sensor-label">
+
+                            Acceleration X
+
+                        </div>
+
+
+                        <div class="sensor-value">
+
+                            <span id="accelX">
+
+                                0
+
+                            </span>
+
+                            G
+
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="sensor-box">
+
+                        <div class="sensor-label">
+
+                            Acceleration Y
+
+                        </div>
+
+
+                        <div class="sensor-value">
+
+                            <span id="accelY">
+
+                                0
+
+                            </span>
+
+                            G
+
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="sensor-box">
+
+                        <div class="sensor-label">
+
+                            Acceleration Z
+
+                        </div>
+
+
+                        <div class="sensor-value">
+
+                            <span id="accelZ">
+
+                                0
+
+                            </span>
+
+                            G
+
+                        </div>
+
+                    </div>
+
+
+                </div>
+
+            </div>
+
+
+
+            <!-- TABLE -->
+
+            <div class="panel">
+
+                <div class="panel-title">
+
+                    Latest Sensor Data
+
+                </div>
+
+
+                <div class="table-wrapper">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+
+                                <th>Time</th>
+
+                                <th>X</th>
+
+                                <th>Y</th>
+
+                                <th>Z</th>
+
+                                <th>PGA</th>
+
+                                <th>Level</th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody id="dataTable">
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+
+
+        <!-- =================================================
+             RIGHT
+        ================================================= -->
+
+        <div>
+
+
+            <!-- LEVEL -->
+
+            <div class="panel">
+
+                <div class="panel-title">
+
+                    Vibration Level
+
+                </div>
+
+
+                <div
+                    id="level"
+                    class="level LOW"
+                >
+
+                    LOW
+
+                </div>
+
+            </div>
+
+
+
+            <!-- DIRECTION -->
+
+            <div class="panel">
+
+                <div class="panel-title">
+
+                    Vibration Direction
+
+                </div>
+
+
+                <div class="direction">
+
+
+                    <span class="north">
+
+                        N
+
+                    </span>
+
+
+                    <span class="south">
+
+                        S
+
+                    </span>
+
+
+                    <span class="east">
+
+                        E
+
+                    </span>
+
+
+                    <span class="west">
+
+                        W
+
+                    </span>
+
+
+                    <div
+                        id="direction"
+                        class="direction-center"
+                    >
+
+                        CENTER
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- SENSOR STATUS -->
+
+            <div class="panel">
+
+                <div class="panel-title">
+
+                    Sensor Status
+
+                </div>
+
+
+                <div class="status-row">
+
+                    <span>
+
+                        MPU6050
+
+                    </span>
+
+                    <b
+                        id="mpuStatus"
+                        class="status-online"
+                    >
+
+                        Online
+
+                    </b>
+
+                </div>
+
+
+                <div class="status-row">
+
+                    <span>
+
+                        Sharp Distance
+
+                    </span>
+
+                    <b
+                        id="sharpStatus"
+                        class="status-online"
+                    >
+
+                        Online
+
+                    </b>
+
+                </div>
+
+
+                <div class="status-row">
+
+                    <span>
+
+                        Network
+
+                    </span>
+
+                    <b
+                        id="networkStatus"
+                        class="status-online"
+                    >
+
+                        Online
+
+                    </b>
+
+                </div>
+
+            </div>
+
+
+        </div>
 
     </div>
 
 </div>
 
+
+
 <script>
 
-const deviceId = "ESP32-1FA932BC";
+
+/* =====================================================
+   GLOBAL VARIABLES
+===================================================== */
+
+let DEVICE_ID = null;
+
+let vibrationChart = null;
 
 
-async function gpioOn() {
+/*
+ * ค่าปัจจุบันของกราฟ
+ */
 
-    await sendGPIO("on");
+let currentChartValue = 0;
+
+
+/*
+ * ค่าเป้าหมายจาก API
+ */
+
+let targetChartValue = 0;
+
+
+/*
+ * ป้องกัน API request ซ้อนกัน
+ */
+
+let isFetching = false;
+
+
+/*
+ * timestamp ล่าสุดที่เพิ่มลงตาราง
+ */
+
+let lastTableTimestamp = null;
+
+
+/*
+ * animation
+ */
+
+let chartAnimationFrame = null;
+
+
+/*
+ * เวลาที่เพิ่มจุดล่าสุด
+ */
+
+let lastChartPointTime = 0;
+
+
+/*
+ * จำนวนจุดที่แสดง
+ */
+
+const MAX_CHART_POINTS = 60;
+
+
+/* =====================================================
+   PGA THRESHOLD
+===================================================== */
+
+/*
+ * ใช้เกณฑ์เดียวกับ Sensor ต้นแบบ
+ *
+ * LOW       < 0.05
+ * MODERATE  < 0.15
+ * HIGH      < 0.40
+ * SEVERE    >= 0.40
+ */
+
+const PGA_LOW = 0.05;
+
+const PGA_MODERATE = 0.15;
+
+const PGA_HIGH = 0.40;
+
+
+/* =====================================================
+   INIT CHART
+===================================================== */
+
+function initChart() {
+
+
+    const ctx =
+        document
+            .getElementById(
+                "vibrationChart"
+            )
+            .getContext("2d");
+
+
+    vibrationChart = new Chart(
+        ctx,
+        {
+
+            type: "line",
+
+
+            data: {
+
+                labels: [],
+
+
+                datasets: [
+
+                    /*
+                     * =================================
+                     * PGA
+                     * =================================
+                     */
+
+                    {
+
+                        label: "PGA",
+
+                        data: [],
+
+                        borderWidth: 2,
+
+                        tension: 0.35,
+
+                        cubicInterpolationMode:
+                            "monotone",
+
+                        pointRadius: 0,
+
+                        pointHoverRadius: 4,
+
+                        fill: false
+
+                    },
+
+
+                    /*
+                     * =================================
+                     * LOW = 0.05
+                     * =================================
+                     */
+
+                    {
+
+                        label: "LOW 0.05",
+
+                        data: [],
+
+                        borderWidth: 1,
+
+                        borderDash: [
+                            6,
+                            6
+                        ],
+
+                        pointRadius: 0,
+
+                        pointHoverRadius: 0,
+
+                        fill: false
+
+                    },
+
+
+                    /*
+                     * =================================
+                     * MODERATE = 0.15
+                     * =================================
+                     */
+
+                    {
+
+                        label: "MODERATE 0.15",
+
+                        data: [],
+
+                        borderWidth: 1,
+
+                        borderDash: [
+                            6,
+                            6
+                        ],
+
+                        pointRadius: 0,
+
+                        pointHoverRadius: 0,
+
+                        fill: false
+
+                    },
+
+
+                    /*
+                     * =================================
+                     * HIGH = 0.40
+                     * =================================
+                     */
+
+                    {
+
+                        label: "HIGH 0.40",
+
+                        data: [],
+
+                        borderWidth: 1,
+
+                        borderDash: [
+                            6,
+                            6
+                        ],
+
+                        pointRadius: 0,
+
+                        pointHoverRadius: 0,
+
+                        fill: false
+
+                    }
+
+                ]
+
+            },
+
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                /*
+                 * ปิด Animation ของ Chart.js
+                 * เพราะเราทำ Smooth เอง
+                 */
+
+                animation: false,
+
+
+                interaction: {
+
+                    intersect: false,
+
+                    mode: "index"
+
+                },
+
+
+                scales: {
+
+                    /*
+                     * =================================
+                     * X AXIS
+                     * =================================
+                     */
+
+                    x: {
+
+                        display: true,
+
+                        ticks: {
+
+                            maxTicksLimit: 8
+
+                        }
+
+                    },
+
+
+                    /*
+                     * =================================
+                     * Y AXIS
+                     *
+                     * FIXED 0.00 - 0.50
+                     * =================================
+                     */
+
+                    y: {
+
+                        min: 0,
+
+                        max: 0.50,
+
+                        beginAtZero: true,
+
+                        ticks: {
+
+                            stepSize: 0.05,
+
+                            precision: 2,
+
+                            callback:
+                                function(value) {
+
+                                    return Number(
+                                        value
+                                    ).toFixed(2);
+
+                                }
+
+                        },
+
+                        title: {
+
+                            display: true,
+
+                            text: "PGA (G)"
+
+                        }
+
+                    }
+
+                },
+
+
+                plugins: {
+
+                    legend: {
+
+                        display: true
+
+                    },
+
+
+                    tooltip: {
+
+                        callbacks: {
+
+                            label:
+                                function(context) {
+
+                                    const value =
+                                        Number(
+                                            context.raw
+                                        );
+
+
+                                    return (
+                                        context.dataset
+                                            .label
+                                        +
+                                        ": "
+                                        +
+                                        value.toFixed(4)
+                                        +
+                                        " G"
+                                    );
+
+                                }
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        }
+    );
 
 }
 
 
-async function gpioOff() {
+/* =====================================================
+   LOAD DEVICE
+===================================================== */
 
-    await sendGPIO("off");
+async function loadDevice() {
 
-}
-
-
-async function sendGPIO(state) {
 
     try {
 
-        const response = await fetch(
-            `/api/device/${deviceId}/gpio`,
-            {
-                method: "POST",
 
-                headers: {
-                    "Content-Type": "application/json"
-                },
+        const response =
+            await fetch(
+                "/api/devices",
+                {
+                    cache: "no-store"
+                }
+            );
 
-                body: JSON.stringify({
-                    state: state
-                })
-            }
-        );
 
-        const data = await response.json();
+        if (!response.ok) {
 
-        if (data.success) {
-
-            updateLED(state === "on");
-
-        } else {
-
-            alert(data.message);
+            throw new Error(
+                `HTTP ${response.status}`
+            );
 
         }
 
-    } catch (error) {
 
-        alert("ไม่สามารถเชื่อมต่อ Server");
+        const result =
+            await response.json();
+
+
+        console.log(
+            "Devices:",
+            result
+        );
+
+
+        if (
+            !result.success ||
+            !result.devices ||
+            result.devices.length === 0
+        ) {
+
+            throw new Error(
+                "No ESP32 device found"
+            );
+
+        }
+
+
+        /*
+         * ใช้ Device ตัวแรก
+         */
+
+        const device =
+            result.devices[0];
+
+
+        DEVICE_ID =
+            device.device_id;
+
+
+        document
+            .getElementById(
+                "deviceName"
+            )
+            .textContent =
+                DEVICE_ID;
+
+
+        /*
+         * Device status
+         */
+
+        if (
+            device.status === "online"
+        ) {
+
+            setOnline();
+
+        }
+        else {
+
+            setOffline();
+
+        }
+
+
+        /*
+         * ดึงข้อมูลครั้งแรก
+         */
+
+        await getLatest();
+
+
+    }
+    catch (error) {
+
+
+        console.error(
+            "LOAD DEVICE ERROR:",
+            error
+        );
+
+
+        setOffline();
 
     }
 
 }
 
 
-function updateLED(isOn) {
+/* =====================================================
+   GET LATEST
+===================================================== */
 
-    const led =
-        document.getElementById("led");
+async function getLatest() {
+
+
+    /*
+     * ยังไม่มี Device
+     */
+
+    if (!DEVICE_ID) {
+
+        return;
+
+    }
+
+
+    /*
+     * ป้องกัน Request ซ้อน
+     */
+
+    if (isFetching) {
+
+        return;
+
+    }
+
+
+    isFetching = true;
+
+
+    try {
+
+
+        const url =
+            `/api/device/${DEVICE_ID}/latest`;
+
+
+        const response =
+            await fetch(
+                url,
+                {
+                    cache: "no-store"
+                }
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                `HTTP ${response.status}`
+            );
+
+        }
+
+
+        const result =
+            await response.json();
+
+
+        if (!result.success) {
+
+            throw new Error(
+                "API success=false"
+            );
+
+        }
+
+
+        const data =
+            result.data;
+
+
+        console.log(
+            "Sensor:",
+            data
+        );
+
+
+        /*
+         * Update Dashboard
+         */
+
+        updateDashboard(data);
+
+
+        /*
+         * เพิ่ม Table เฉพาะข้อมูลใหม่
+         */
+
+        const timestamp =
+            data.timestamp ||
+            data.created_at ||
+            data.time ||
+            null;
+
+
+        if (
+            timestamp &&
+            timestamp !==
+            lastTableTimestamp
+        ) {
+
+            addTableRow(data);
+
+
+            lastTableTimestamp =
+                timestamp;
+
+        }
+
+
+        /*
+         * Network Online
+         */
+
+        setOnline();
+
+
+    }
+    catch (error) {
+
+
+        console.error(
+            "LATEST ERROR:",
+            error
+        );
+
+
+        setOffline();
+
+    }
+    finally {
+
+        isFetching = false;
+
+    }
+
+}
+
+
+/* =====================================================
+   UPDATE DASHBOARD
+===================================================== */
+
+function updateDashboard(data) {
+
+
+    /*
+     * =================================
+     * PGA
+     * =================================
+     */
+
+    const pga =
+        Number(data.pga || 0);
+
+
+    document
+        .getElementById("pga")
+        .textContent =
+            pga.toFixed(4);
+
+
+    /*
+     * =================================
+     * Pendulum
+     * =================================
+     */
+
+    document
+        .getElementById("pendulum")
+        .textContent =
+            Number(
+                data.pendulum || 0
+            ).toFixed(4);
+
+
+    /*
+     * =================================
+     * Peak PGA
+     * =================================
+     */
+
+    document
+        .getElementById("peakPga")
+        .textContent =
+            Number(
+                data.peak_pga || 0
+            ).toFixed(4);
+
+
+    /*
+     * =================================
+     * ML
+     * =================================
+     */
+
+    document
+        .getElementById("ml")
+        .textContent =
+            Number(
+                data.estimated_ml || 0
+            ).toFixed(2);
+
+
+    /*
+     * =================================
+     * X
+     * =================================
+     */
+
+    document
+        .getElementById("accelX")
+        .textContent =
+            Number(
+                data.accel_x || 0
+            ).toFixed(4);
+
+
+    /*
+     * =================================
+     * Y
+     * =================================
+     */
+
+    document
+        .getElementById("accelY")
+        .textContent =
+            Number(
+                data.accel_y || 0
+            ).toFixed(4);
+
+
+    /*
+     * =================================
+     * Z
+     * =================================
+     */
+
+    document
+        .getElementById("accelZ")
+        .textContent =
+            Number(
+                data.accel_z || 0
+            ).toFixed(4);
+
+
+    /*
+     * =================================
+     * Level
+     * =================================
+     */
+
+    const level =
+        data.level || "LOW";
+
+
+    const levelElement =
+        document.getElementById(
+            "level"
+        );
+
+
+    levelElement.textContent =
+        level;
+
+
+    levelElement.className =
+        "level " + level;
+
+
+    /*
+     * =================================
+     * Direction
+     * =================================
+     */
+
+    const direction =
+        data.direction ||
+        "CENTER";
+
+
+    document
+        .getElementById(
+            "direction"
+        )
+        .textContent =
+            direction;
+
+
+    updateDirectionStyle(
+        direction
+    );
+
+
+    /*
+     * =================================
+     * Graph
+     * =================================
+     */
+
+    addChartData(
+        pga
+    );
+
+}
+
+
+/* =====================================================
+   CHART DATA
+===================================================== */
+
+function addChartData(value) {
+
+
+    /*
+     * ค่า PGA จาก API
+     */
+
+    targetChartValue =
+        Number(value) || 0;
+
+
+    /*
+     * สำคัญ:
+     *
+     * ไม่มีการแก้ Y Scale ตรงนี้แล้ว
+     *
+     * Y จะคงที่ 0 - 0.50
+     */
+
+}
+
+
+/* =====================================================
+   SMOOTH GRAPH
+===================================================== */
+
+function smoothGraph(timestamp) {
+
+
+    /*
+     * ความแตกต่างระหว่าง
+     * ค่าปัจจุบันกับค่าจาก API
+     */
+
+    const difference =
+        targetChartValue -
+        currentChartValue;
+
+
+    /*
+     * Smooth
+     */
+
+    currentChartValue +=
+        difference * 0.12;
+
+
+    /*
+     * ถ้าใกล้มากแล้ว
+     * ให้ใช้ค่าจริง
+     */
+
+    if (
+        Math.abs(difference)
+        <
+        0.00001
+    ) {
+
+        currentChartValue =
+            targetChartValue;
+
+    }
+
+
+    /*
+     * เพิ่มจุดทุก 100ms
+     */
+
+    if (
+        timestamp -
+        lastChartPointTime
+        >=
+        100
+    ) {
+
+
+        lastChartPointTime =
+            timestamp;
+
+
+        if (vibrationChart) {
+
+
+            const now =
+                new Date();
+
+
+            const time =
+                now.toLocaleTimeString(
+                    [],
+                    {
+                        minute: "2-digit",
+                        second: "2-digit"
+                    }
+                );
+
+
+            /*
+             * =================================
+             * LABEL
+             * =================================
+             */
+
+            vibrationChart
+                .data
+                .labels
+                .push(
+                    time
+                );
+
+
+            /*
+             * =================================
+             * PGA
+             * =================================
+             */
+
+            vibrationChart
+                .data
+                .datasets[0]
+                .data
+                .push(
+                    currentChartValue
+                );
+
+
+            /*
+             * =================================
+             * เส้น 0.05
+             * =================================
+             */
+
+            vibrationChart
+                .data
+                .datasets[1]
+                .data
+                .push(
+                    PGA_LOW
+                );
+
+
+            /*
+             * =================================
+             * เส้น 0.15
+             * =================================
+             */
+
+            vibrationChart
+                .data
+                .datasets[2]
+                .data
+                .push(
+                    PGA_MODERATE
+                );
+
+
+            /*
+             * =================================
+             * เส้น 0.40
+             * =================================
+             */
+
+            vibrationChart
+                .data
+                .datasets[3]
+                .data
+                .push(
+                    PGA_HIGH
+                );
+
+
+            /*
+             * =================================
+             * จำกัดจำนวนจุด
+             * =================================
+             */
+
+            if (
+                vibrationChart
+                    .data
+                    .labels
+                    .length
+                >
+                MAX_CHART_POINTS
+            ) {
+
+
+                vibrationChart
+                    .data
+                    .labels
+                    .shift();
+
+
+                /*
+                 * PGA
+                 */
+
+                vibrationChart
+                    .data
+                    .datasets[0]
+                    .data
+                    .shift();
+
+
+                /*
+                 * LOW
+                 */
+
+                vibrationChart
+                    .data
+                    .datasets[1]
+                    .data
+                    .shift();
+
+
+                /*
+                 * MODERATE
+                 */
+
+                vibrationChart
+                    .data
+                    .datasets[2]
+                    .data
+                    .shift();
+
+
+                /*
+                 * HIGH
+                 */
+
+                vibrationChart
+                    .data
+                    .datasets[3]
+                    .data
+                    .shift();
+
+            }
+
+
+            /*
+             * Update Chart
+             */
+
+            vibrationChart.update(
+                "none"
+            );
+
+        }
+
+    }
+
+
+    /*
+     * ทำต่อประมาณ 60 FPS
+     */
+
+    chartAnimationFrame =
+        requestAnimationFrame(
+            smoothGraph
+        );
+
+}
+
+
+/* =====================================================
+   TABLE
+===================================================== */
+
+function addTableRow(data) {
+
+
+    const table =
+        document.getElementById(
+            "dataTable"
+        );
+
+
+    const row =
+        document.createElement(
+            "tr"
+        );
+
+
+    let time = "-";
+
+
+    /*
+     * รองรับ timestamp
+     */
+
+    const timestamp =
+        data.timestamp ||
+        data.created_at ||
+        data.time ||
+        null;
+
+
+    if (timestamp) {
+
+
+        const date =
+            new Date(
+                timestamp
+            );
+
+
+        if (
+            !isNaN(
+                date.getTime()
+            )
+        ) {
+
+            time =
+                date.toLocaleTimeString();
+
+        }
+        else {
+
+            time =
+                timestamp;
+
+        }
+
+    }
+    else {
+
+        time =
+            new Date()
+                .toLocaleTimeString();
+
+    }
+
+
+    row.innerHTML = `
+
+        <td>
+            ${time}
+        </td>
+
+        <td>
+            ${Number(
+                data.accel_x || 0
+            ).toFixed(4)}
+        </td>
+
+        <td>
+            ${Number(
+                data.accel_y || 0
+            ).toFixed(4)}
+        </td>
+
+        <td>
+            ${Number(
+                data.accel_z || 0
+            ).toFixed(4)}
+        </td>
+
+        <td>
+            ${Number(
+                data.pga || 0
+            ).toFixed(4)}
+        </td>
+
+        <td>
+            ${data.level || "-"}
+        </td>
+
+    `;
+
+
+    /*
+     * ข้อมูลใหม่อยู่บนสุด
+     */
+
+    table.prepend(
+        row
+    );
+
+
+    /*
+     * เก็บแค่ 10 รายการ
+     */
+
+    while (
+        table.children.length
+        >
+        10
+    ) {
+
+        table.removeChild(
+            table.lastChild
+        );
+
+    }
+
+}
+
+
+/* =====================================================
+   DIRECTION STYLE
+===================================================== */
+
+function updateDirectionStyle(
+    direction
+) {
+
+
+    const center =
+        document.getElementById(
+            "direction"
+        );
+
+
+    center.style.transform =
+        "scale(1.05)";
+
+
+    setTimeout(
+        function () {
+
+            center.style.transform =
+                "scale(1)";
+
+        },
+        150
+    );
+
+}
+
+
+/* =====================================================
+   ONLINE
+===================================================== */
+
+function setOnline() {
+
 
     const status =
-        document.getElementById("status");
+        document.getElementById(
+            "deviceStatus"
+        );
 
 
-    if (isOn) {
+    status.textContent =
+        "● Online";
 
-        led.classList.add("on");
 
-        status.innerText =
-            "GPIO 2 ON";
+    status.className =
+        "device-online";
 
-    } else {
 
-        led.classList.remove("on");
+    document
+        .getElementById(
+            "networkStatus"
+        )
+        .textContent =
+            "Online";
 
-        status.innerText =
-            "GPIO 2 OFF";
 
-    }
+    document
+        .getElementById(
+            "networkStatus"
+        )
+        .className =
+            "status-online";
 
 }
+
+
+/* =====================================================
+   OFFLINE
+===================================================== */
+
+function setOffline() {
+
+
+    const status =
+        document.getElementById(
+            "deviceStatus"
+        );
+
+
+    status.textContent =
+        "● Offline";
+
+
+    status.className =
+        "device-offline";
+
+
+    document
+        .getElementById(
+            "networkStatus"
+        )
+        .textContent =
+            "Offline";
+
+
+    document
+        .getElementById(
+            "networkStatus"
+        )
+        .className =
+            "status-offline";
+
+}
+
+
+/* =====================================================
+   START DASHBOARD
+===================================================== */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+
+        console.log(
+            "Dashboard starting..."
+        );
+
+
+        /*
+         * สร้างกราฟ
+         */
+
+        initChart();
+
+
+        /*
+         * เริ่ม Smooth Graph
+         */
+
+        chartAnimationFrame =
+            requestAnimationFrame(
+                smoothGraph
+            );
+
+
+        /*
+         * โหลด ESP32
+         */
+
+        loadDevice();
+
+
+        /*
+         * ดึงข้อมูลทุก 200ms
+         */
+
+        setInterval(
+            function () {
+
+                getLatest();
+
+            },
+            200
+        );
+
+    }
+);
 
 </script>
 
