@@ -620,7 +620,105 @@ def get_history(device_id):
 
         cursor.close()
         conn.close()
-        
+
+@app.route("/api/device/<device_id>/graph", methods=["GET"])
+def get_graph_data(device_id):
+    """
+    ดึงข้อมูลสำหรับกราฟรอบเวลาที่ผู้ใช้เลือก
+    เช่น ก่อนหน้า 30 รายการ + หลัง 30 รายการ
+    """
+
+    selected_id = request.args.get("id", type=int)
+
+    if not selected_id:
+        return jsonify({
+            "success": False,
+            "message": "id is required"
+        }), 400
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # -------------------------------------------------
+        # ตรวจสอบข้อมูลที่เลือก
+        # -------------------------------------------------
+        cursor.execute("""
+            SELECT *
+            FROM sensor_data
+            WHERE id = %s
+              AND device_id = %s
+            LIMIT 1
+        """, (selected_id, device_id))
+
+        selected = cursor.fetchone()
+
+        if not selected:
+            return jsonify({
+                "success": False,
+                "message": "Data not found"
+            }), 404
+
+        # -------------------------------------------------
+        # ดึงข้อมูลก่อนหน้าประมาณ 30 รายการ
+        # -------------------------------------------------
+        cursor.execute("""
+            SELECT *
+            FROM sensor_data
+            WHERE device_id = %s
+              AND id <= %s
+            ORDER BY id DESC
+            LIMIT 30
+        """, (device_id, selected_id))
+
+        before_rows = cursor.fetchall()
+
+        # -------------------------------------------------
+        # ดึงข้อมูลหลังจากข้อมูลที่เลือกประมาณ 30 รายการ
+        # -------------------------------------------------
+        cursor.execute("""
+            SELECT *
+            FROM sensor_data
+            WHERE device_id = %s
+              AND id > %s
+            ORDER BY id ASC
+            LIMIT 30
+        """, (device_id, selected_id))
+
+        after_rows = cursor.fetchall()
+
+        # -------------------------------------------------
+        # รวมข้อมูล
+        # -------------------------------------------------
+        rows = list(reversed(before_rows)) + after_rows
+
+        # -------------------------------------------------
+        # แปลง timestamp ให้ JavaScript ใช้ง่าย
+        # -------------------------------------------------
+        for row in rows:
+            if row.get("timestamp"):
+                row["timestamp"] = row["timestamp"].isoformat()
+
+        if selected.get("timestamp"):
+            selected["timestamp"] = selected["timestamp"].isoformat()
+
+        return jsonify({
+            "success": True,
+            "selected": selected,
+            "data": rows
+        })
+
+    except Exception as e:
+        print("GRAPH DATABASE ERROR:", e)
+
+        return jsonify({
+            "success": False,
+            "message": "Database error"
+        }), 500
+
+    finally:
+        cursor.close()
+        conn.close()
 # =========================================================
 # EXPORT EXCEL
 # =========================================================

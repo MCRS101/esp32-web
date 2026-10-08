@@ -5,7 +5,403 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 Vibration Monitor</title>
     <link rel="stylesheet" href="/static/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js">
+        /* =========================================================
+   SENSOR HISTORY GRAPH
+========================================================= */
+
+let sensorGraph = null;
+
+
+/* ---------------------------------------------------------
+   เปิด Graph Modal
+--------------------------------------------------------- */
+
+async function openSensorGraph(row) {
+
+    const modal = document.getElementById("graphModal");
+
+    modal.classList.add("show");
+
+
+    // แสดงข้อมูลที่เลือกก่อน
+    showSelectedGraphData(row);
+
+
+    try {
+
+        const response = await fetch(
+            `/api/device/${DEVICE_ID}/graph?id=${row.id}`
+        );
+
+        const result = await response.json();
+
+
+        if (!result.success) {
+
+            alert(
+                result.message || "ไม่สามารถโหลดข้อมูลกราฟได้"
+            );
+
+            return;
+        }
+
+
+        // สร้างกราฟ
+        createSensorHistoryGraph(
+            result.data,
+            result.selected
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "GRAPH ERROR:",
+            error
+        );
+
+        alert(
+            "ไม่สามารถเชื่อมต่อ Server ได้"
+        );
+    }
+}
+
+
+/* ---------------------------------------------------------
+   ปิด Graph Modal
+--------------------------------------------------------- */
+
+function closeGraphModal() {
+
+    const modal =
+        document.getElementById("graphModal");
+
+    modal.classList.remove("show");
+}
+
+
+/* ---------------------------------------------------------
+   แสดงข้อมูลที่เลือก
+--------------------------------------------------------- */
+
+function showSelectedGraphData(row) {
+
+    const time =
+        formatDateTime(row.timestamp);
+
+
+    document.getElementById(
+        "graphSelectedTime"
+    ).textContent = time;
+
+
+    document.getElementById(
+        "graphTime"
+    ).textContent = time;
+
+
+    document.getElementById(
+        "graphX"
+    ).textContent =
+        Number(row.accel_x || 0).toFixed(4) + " G";
+
+
+    document.getElementById(
+        "graphY"
+    ).textContent =
+        Number(row.accel_y || 0).toFixed(4) + " G";
+
+
+    document.getElementById(
+        "graphZ"
+    ).textContent =
+        Number(row.accel_z || 0).toFixed(4) + " G";
+
+
+    document.getElementById(
+        "graphPGA"
+    ).textContent =
+        Number(row.pga || 0).toFixed(4);
+
+
+    document.getElementById(
+        "graphPeakPGA"
+    ).textContent =
+        Number(row.peak_pga || 0).toFixed(4);
+
+
+    document.getElementById(
+        "graphPendulum"
+    ).textContent =
+        Number(row.pendulum || 0).toFixed(2);
+
+
+    document.getElementById(
+        "graphLevel"
+    ).textContent =
+        row.level || "-";
+
+
+    document.getElementById(
+        "graphDirection"
+    ).textContent =
+        row.direction || "-";
+}
+
+
+/* ---------------------------------------------------------
+   สร้างกราฟ
+--------------------------------------------------------- */
+
+function createSensorHistoryGraph(
+    rows,
+    selected
+) {
+
+    const canvas =
+        document.getElementById(
+            "sensorGraph"
+        );
+
+
+    // ถ้ามีกราฟเก่าอยู่ ให้ทำลายก่อน
+    if (sensorGraph) {
+
+        sensorGraph.destroy();
+
+        sensorGraph = null;
+    }
+
+
+    // เรียงตามเวลา
+    rows.sort(
+        (a, b) =>
+            new Date(a.timestamp) -
+            new Date(b.timestamp)
+    );
+
+
+    const labels = rows.map(row => {
+
+        const date =
+            new Date(row.timestamp);
+
+        return date.toLocaleTimeString(
+            "th-TH",
+            {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit"
+            }
+        );
+
+    });
+
+
+    const pgaData =
+        rows.map(row =>
+            Number(row.pga || 0)
+        );
+
+
+    const pendulumData =
+        rows.map(row =>
+            Number(row.pendulum || 0)
+        );
+
+
+    /*
+     * หาตำแหน่งของข้อมูลที่ผู้ใช้คลิก
+     */
+
+    const selectedIndex =
+        rows.findIndex(
+            row =>
+                Number(row.id) ===
+                Number(selected.id)
+        );
+
+
+    /*
+     * จุดที่เลือก
+     */
+
+    const selectedPoint =
+        rows.map(
+            (row, index) =>
+                index === selectedIndex
+                    ? Number(row.pga || 0)
+                    : null
+        );
+
+
+    sensorGraph =
+        new Chart(
+            canvas,
+            {
+                type: "line",
+
+                data: {
+
+                    labels: labels,
+
+                    datasets: [
+
+                        {
+                            label: "PGA",
+
+                            data: pgaData,
+
+                            borderWidth: 2,
+
+                            tension: 0.25,
+
+                            pointRadius: 3,
+
+                            pointHoverRadius: 6,
+
+                            fill: false
+                        },
+
+
+                        {
+                            label: "Pendulum",
+
+                            data: pendulumData,
+
+                            borderWidth: 2,
+
+                            tension: 0.25,
+
+                            pointRadius: 3,
+
+                            pointHoverRadius: 6,
+
+                            fill: false
+                        },
+
+
+                        {
+                            label: "ข้อมูลที่เลือก",
+
+                            data: selectedPoint,
+
+                            showLine: false,
+
+                            pointRadius: 9,
+
+                            pointHoverRadius: 11,
+
+                            borderWidth: 3
+                        }
+
+                    ]
+
+                },
+
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+
+                    interaction: {
+
+                        mode: "index",
+
+                        intersect: false
+
+                    },
+
+
+                    plugins: {
+
+                        legend: {
+
+                            display: true
+
+                        },
+
+
+                        tooltip: {
+
+                            callbacks: {
+
+                                title: function(
+                                    tooltipItems
+                                ) {
+
+                                    return (
+                                        tooltipItems[0]
+                                            .label
+                                    );
+                                },
+
+                                label: function(
+                                    context
+                                ) {
+
+                                    return (
+                                        context.dataset
+                                            .label
+                                        + ": "
+                                        + Number(
+                                            context.raw
+                                        ).toFixed(4)
+                                    );
+
+                                }
+
+                            }
+
+                        }
+
+                    },
+
+
+                    scales: {
+
+                        x: {
+
+                            title: {
+
+                                display: true,
+
+                                text: "เวลา"
+
+                            }
+
+                        },
+
+
+                        y: {
+
+                            beginAtZero: true,
+
+                            suggestedMax: 2,
+
+                            title: {
+
+                                display: true,
+
+                                text: "ค่า"
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+        );
+}
+    </script>
+    
 </head>
 <body>
 
@@ -225,6 +621,101 @@
 
 <script src="/static/dashboard.js"></script>
 </body>
+<!-- =========================================================
+     GRAPH MODAL
+========================================================= -->
+
+<div id="graphModal" class="graph-modal">
+
+    <div class="graph-modal-content">
+
+        <!-- Header -->
+        <div class="graph-modal-header">
+
+            <div>
+                <h2>กราฟข้อมูลแรงสั่นสะเทือน</h2>
+                <p id="graphSelectedTime">
+                    -
+                </p>
+            </div>
+
+            <button
+                class="graph-close-btn"
+                onclick="closeGraphModal()"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <!-- Graph -->
+        <div class="graph-container">
+
+            <canvas id="sensorGraph"></canvas>
+
+        </div>
+
+
+        <!-- Selected Data -->
+        <div class="graph-detail">
+
+            <h3>ข้อมูลที่เลือก</h3>
+
+            <div class="graph-detail-grid">
+
+                <div class="graph-detail-item">
+                    <span>วันที่ / เวลา</span>
+                    <strong id="graphTime">-</strong>
+                </div>
+
+                <div class="graph-detail-item">
+                    <span>แกน X</span>
+                    <strong id="graphX">-</strong>
+                </div>
+
+                <div class="graph-detail-item">
+                    <span>แกน Y</span>
+                    <strong id="graphY">-</strong>
+                </div>
+
+                <div class="graph-detail-item">
+                    <span>แกน Z</span>
+                    <strong id="graphZ">-</strong>
+                </div>
+
+                <div class="graph-detail-item">
+                    <span>PGA</span>
+                    <strong id="graphPGA">-</strong>
+                </div>
+
+                <div class="graph-detail-item">
+                    <span>Peak PGA</span>
+                    <strong id="graphPeakPGA">-</strong>
+                </div>
+
+                <div class="graph-detail-item">
+                    <span>Pendulum</span>
+                    <strong id="graphPendulum">-</strong>
+                </div>
+
+                <div class="graph-detail-item">
+                    <span>สถานะ</span>
+                    <strong id="graphLevel">-</strong>
+                </div>
+
+                <div class="graph-detail-item">
+                    <span>ทิศทาง</span>
+                    <strong id="graphDirection">-</strong>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
 <!-- =====================================================
      ALL DATA MODAL
 ===================================================== -->

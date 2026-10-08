@@ -1369,7 +1369,11 @@ async function openAllData() {
 
             const tr =
                 document.createElement("tr");
-
+                tr.style.cursor = "pointer";
+                tr.onclick = function() {
+                    
+                    openSensorGraph(row);
+                };
 
             tr.innerHTML = `
 
