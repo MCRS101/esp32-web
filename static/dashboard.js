@@ -1630,3 +1630,397 @@ function exportAllExcel() {
     window.location.href =
         `/api/device/${encodeURIComponent(DEVICE_ID)}/export/excel`;
 }
+/* =========================================================
+   SENSOR HISTORY GRAPH
+========================================================= */
+
+let sensorGraph = null;
+
+
+/* ---------------------------------------------------------
+   เปิด Graph Modal
+--------------------------------------------------------- */
+
+async function openSensorGraph(row) {
+
+    const modal = document.getElementById("graphModal");
+
+    modal.classList.add("show");
+
+
+    // แสดงข้อมูลที่เลือกก่อน
+    showSelectedGraphData(row);
+
+
+    try {
+
+        const response = await fetch(
+            `/api/device/${DEVICE_ID}/graph?id=${row.id}`
+        );
+
+        const result = await response.json();
+
+
+        if (!result.success) {
+
+            alert(
+                result.message || "ไม่สามารถโหลดข้อมูลกราฟได้"
+            );
+
+            return;
+        }
+
+
+        // สร้างกราฟ
+        createSensorHistoryGraph(
+            result.data,
+            result.selected
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "GRAPH ERROR:",
+            error
+        );
+
+        alert(
+            "ไม่สามารถเชื่อมต่อ Server ได้"
+        );
+    }
+}
+
+
+/* ---------------------------------------------------------
+   ปิด Graph Modal
+--------------------------------------------------------- */
+
+function closeGraphModal() {
+
+    const modal =
+        document.getElementById("graphModal");
+
+    modal.classList.remove("show");
+}
+
+
+/* ---------------------------------------------------------
+   แสดงข้อมูลที่เลือก
+--------------------------------------------------------- */
+
+function showSelectedGraphData(row) {
+
+    const time =
+        formatDateTime(row.timestamp);
+
+
+    document.getElementById(
+        "graphSelectedTime"
+    ).textContent = time;
+
+
+    document.getElementById(
+        "graphTime"
+    ).textContent = time;
+
+
+    document.getElementById(
+        "graphX"
+    ).textContent =
+        Number(row.accel_x || 0).toFixed(4) + " G";
+
+
+    document.getElementById(
+        "graphY"
+    ).textContent =
+        Number(row.accel_y || 0).toFixed(4) + " G";
+
+
+    document.getElementById(
+        "graphZ"
+    ).textContent =
+        Number(row.accel_z || 0).toFixed(4) + " G";
+
+
+    document.getElementById(
+        "graphPGA"
+    ).textContent =
+        Number(row.pga || 0).toFixed(4);
+
+
+    document.getElementById(
+        "graphPeakPGA"
+    ).textContent =
+        Number(row.peak_pga || 0).toFixed(4);
+
+
+    document.getElementById(
+        "graphPendulum"
+    ).textContent =
+        Number(row.pendulum || 0).toFixed(2);
+
+
+    document.getElementById(
+        "graphLevel"
+    ).textContent =
+        row.level || "-";
+
+
+    document.getElementById(
+        "graphDirection"
+    ).textContent =
+        row.direction || "-";
+}
+
+
+/* ---------------------------------------------------------
+   สร้างกราฟ
+--------------------------------------------------------- */
+
+function createSensorHistoryGraph(
+    rows,
+    selected
+) {
+
+    const canvas =
+        document.getElementById(
+            "sensorGraph"
+        );
+
+
+    // ถ้ามีกราฟเก่าอยู่ ให้ทำลายก่อน
+    if (sensorGraph) {
+
+        sensorGraph.destroy();
+
+        sensorGraph = null;
+    }
+
+
+    // เรียงตามเวลา
+    rows.sort(
+        (a, b) =>
+            new Date(a.timestamp) -
+            new Date(b.timestamp)
+    );
+
+
+    const labels = rows.map(row => {
+
+        const date =
+            new Date(row.timestamp);
+
+        return date.toLocaleTimeString(
+            "th-TH",
+            {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit"
+            }
+        );
+
+    });
+
+
+    const pgaData =
+        rows.map(row =>
+            Number(row.pga || 0)
+        );
+
+
+    const pendulumData =
+        rows.map(row =>
+            Number(row.pendulum || 0)
+        );
+
+
+    /*
+     * หาตำแหน่งของข้อมูลที่ผู้ใช้คลิก
+     */
+
+    const selectedIndex =
+        rows.findIndex(
+            row =>
+                Number(row.id) ===
+                Number(selected.id)
+        );
+
+
+    /*
+     * จุดที่เลือก
+     */
+
+    const selectedPoint =
+        rows.map(
+            (row, index) =>
+                index === selectedIndex
+                    ? Number(row.pga || 0)
+                    : null
+        );
+
+
+    sensorGraph =
+        new Chart(
+            canvas,
+            {
+                type: "line",
+
+                data: {
+
+                    labels: labels,
+
+                    datasets: [
+
+                        {
+                            label: "PGA",
+
+                            data: pgaData,
+
+                            borderWidth: 2,
+
+                            tension: 0.25,
+
+                            pointRadius: 3,
+
+                            pointHoverRadius: 6,
+
+                            fill: false
+                        },
+
+
+                        {
+                            label: "Pendulum",
+
+                            data: pendulumData,
+
+                            borderWidth: 2,
+
+                            tension: 0.25,
+
+                            pointRadius: 3,
+
+                            pointHoverRadius: 6,
+
+                            fill: false
+                        },
+
+
+                        {
+                            label: "ข้อมูลที่เลือก",
+
+                            data: selectedPoint,
+
+                            showLine: false,
+
+                            pointRadius: 9,
+
+                            pointHoverRadius: 11,
+
+                            borderWidth: 3
+                        }
+
+                    ]
+
+                },
+
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+
+                    interaction: {
+
+                        mode: "index",
+
+                        intersect: false
+
+                    },
+
+
+                    plugins: {
+
+                        legend: {
+
+                            display: true
+
+                        },
+
+
+                        tooltip: {
+
+                            callbacks: {
+
+                                title: function(
+                                    tooltipItems
+                                ) {
+
+                                    return (
+                                        tooltipItems[0]
+                                            .label
+                                    );
+                                },
+
+                                label: function(
+                                    context
+                                ) {
+
+                                    return (
+                                        context.dataset
+                                            .label
+                                        + ": "
+                                        + Number(
+                                            context.raw
+                                        ).toFixed(4)
+                                    );
+
+                                }
+
+                            }
+
+                        }
+
+                    },
+
+
+                    scales: {
+
+                        x: {
+
+                            title: {
+
+                                display: true,
+
+                                text: "เวลา"
+
+                            }
+
+                        },
+
+
+                        y: {
+
+                            beginAtZero: true,
+
+                            suggestedMax: 2,
+
+                            title: {
+
+                                display: true,
+
+                                text: "ค่า"
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+        );
+}
