@@ -1647,6 +1647,15 @@ async function openSensorGraph(row) {
 
     modal.classList.add("show");
 
+/* เลื่อน Graph Modal ไปด้านบนสุด */
+modal.scrollTop = 0;
+
+/* เลื่อนหน้าเว็บหลักกลับด้านบน */
+window.scrollTo({
+    top: 0,
+    behavior: "instant"
+});
+
 
     // แสดงข้อมูลที่เลือกก่อน
     showSelectedGraphData(row);
