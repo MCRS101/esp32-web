@@ -6,7 +6,7 @@
     <title>ESP32 Vibration Monitor</title>
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="/static/dashboard.js"></script>
+    
     
 </head>
 <body>
@@ -225,7 +225,90 @@
 
 </main>
 
-<script src="/static/dashboard.js"></script>
+
+<!-- =========================================================
+     ALL DATA MODAL
+========================================================= -->
+
+<div id="allDataModal" class="modal">
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <h2>
+                ข้อมูลแรงสั่นสะเทือนทั้งหมด
+            </h2>
+
+            <button
+                class="modal-close"
+                onclick="closeAllData()"
+                type="button"
+            >
+                ×
+            </button>
+
+        </div>
+
+        <div class="modal-toolbar">
+
+            <div>
+                จำนวนข้อมูล:
+                <strong id="allDataCount">0</strong>
+                รายการ
+            </div>
+
+            <div class="modal-export-buttons">
+
+                <button
+                    class="btn-pdf"
+                    onclick="exportAllPDF()"
+                    type="button"
+                >
+                    ▣ PDF
+                </button>
+
+                <button
+                    class="btn-excel"
+                    onclick="exportAllExcel()"
+                    type="button"
+                >
+                    ▤ Excel
+                </button>
+
+            </div>
+
+        </div>
+
+        <div class="all-data-table-container">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>วันที่ / เวลา</th>
+                        <th>แกน X (G)</th>
+                        <th>แกน Y (G)</th>
+                        <th>แกน Z (G)</th>
+                        <th>PGA</th>
+                        <th>Peak PGA</th>
+                        <th>Pendulum</th>
+                        <th>สถานะ</th>
+                        <th>ทิศทาง</th>
+                    </tr>
+                </thead>
+
+                <tbody id="allDataTable"></tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+
 <!-- =========================================================
      GRAPH MODAL
 ========================================================= -->
@@ -234,11 +317,11 @@
 
     <div class="graph-modal-content">
 
-        <!-- Header -->
         <div class="graph-modal-header">
 
             <div>
                 <h2>กราฟข้อมูลแรงสั่นสะเทือน</h2>
+
                 <p id="graphSelectedTime">
                     -
                 </p>
@@ -247,6 +330,8 @@
             <button
                 class="graph-close-btn"
                 onclick="closeGraphModal()"
+                type="button"
+                aria-label="ปิด"
             >
                 ×
             </button>
@@ -254,15 +339,17 @@
         </div>
 
 
-        <!-- Graph -->
+        <!-- GRAPH -->
+
         <div class="graph-container">
-                
+
             <canvas id="sensorGraph"></canvas>
 
         </div>
 
 
-        <!-- Selected Data -->
+        <!-- SELECTED DATA -->
+
         <div class="graph-detail">
 
             <h3>ข้อมูลที่เลือก</h3>
@@ -321,105 +408,16 @@
     </div>
 
 </div>
+
+
+<!-- =========================================================
+     JAVASCRIPT
+========================================================= -->
+
+<script src="/static/dashboard.js"></script>
+
+
 </body>
 
-<!-- =====================================================
-     ALL DATA MODAL
-===================================================== -->
 
-<div id="allDataModal" class="modal">
-
-    <div class="modal-content">
-
-        <div class="modal-header">
-
-            <h2>
-                ข้อมูลแรงสั่นสะเทือนทั้งหมด
-            </h2>
-
-            <button
-                class="modal-close"
-                onclick="closeAllData()"
-            >
-                ×
-            </button>
-
-        </div>
-
-
-        <div class="modal-toolbar">
-
-            <div>
-                จำนวนข้อมูล:
-                <strong id="allDataCount">
-                    0
-                </strong>
-                รายการ
-            </div>
-
-
-            <div class="modal-export-buttons">
-
-                <button
-                    class="btn-pdf"
-                    onclick="exportAllPDF()"
-                >
-                    ▣ PDF
-                </button>
-
-
-                <button
-                    class="btn-excel"
-                    onclick="exportAllExcel()"
-                >
-                    ▤ Excel
-                </button>
-
-            </div>
-
-        </div>
-
-
-        <div class="all-data-table-container">
-
-            <table>
-
-                <thead>
-
-                    <tr>
-
-                        <th>วันที่ / เวลา</th>
-
-                        <th>แกน X (G)</th>
-
-                        <th>แกน Y (G)</th>
-
-                        <th>แกน Z (G)</th>
-
-                        <th>PGA</th>
-
-                        <th>Peak PGA</th>
-
-                        <th>Pendulum</th>
-
-                        <th>สถานะ</th>
-
-                        <th>ทิศทาง</th>
-
-                    </tr>
-
-                </thead>
-
-
-                <tbody id="allDataTable">
-
-                </tbody>
-
-            </table>
-
-        </div>
-
-    </div>
-
-</div>
 </html>

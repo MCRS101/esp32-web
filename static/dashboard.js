@@ -1470,12 +1470,13 @@ async function openAllData() {
 function closeAllData() {
 
     const modal =
-        document.getElementById(
-            "allDataModal"
-        );
+        document.getElementById("allDataModal");
 
-    modal.classList.remove("show");
+    if (modal) {
+        modal.classList.remove("show");
+    }
 
+    document.body.classList.remove("modal-open");
 }
 
 
@@ -1643,59 +1644,67 @@ let sensorGraph = null;
 
 async function openSensorGraph(row) {
 
-    const modal = document.getElementById("graphModal");
+    const graphModal = document.getElementById("graphModal");
+    const allDataModal = document.getElementById("allDataModal");
 
-    modal.classList.add("show");
+    if (!graphModal) {
+        console.error("ไม่พบ graphModal");
+        return;
+    }
 
-/* เลื่อน Graph Modal ไปด้านบนสุด */
-modal.scrollTop = 0;
+    // ซ่อนหน้าข้อมูลทั้งหมดก่อน
+    if (allDataModal) {
+        allDataModal.classList.remove("show");
+    }
 
-/* เลื่อนหน้าเว็บหลักกลับด้านบน */
-window.scrollTo({
-    top: 0,
-    behavior: "instant"
-});
+    // เปิดกราฟ
+    graphModal.classList.add("show");
 
+    // ล็อกการ scroll ของหน้าเว็บ
+    document.body.classList.add("modal-open");
+
+    // เลื่อน modal ไปด้านบน
+    graphModal.scrollTop = 0;
 
     // แสดงข้อมูลที่เลือกก่อน
     showSelectedGraphData(row);
 
-
     try {
 
         const response = await fetch(
-            `/api/device/${DEVICE_ID}/graph?id=${row.id}`
+            `/api/device/${encodeURIComponent(DEVICE_ID)}/graph?id=${encodeURIComponent(row.id)}`,
+            {
+                cache: "no-store"
+            }
         );
 
-        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
 
+        const result = await response.json();
 
         if (!result.success) {
 
             alert(
-                result.message || "ไม่สามารถโหลดข้อมูลกราฟได้"
+                result.message ||
+                "ไม่สามารถโหลดข้อมูลกราฟได้"
             );
 
             return;
         }
 
-
-        // สร้างกราฟ
         createSensorHistoryGraph(
             result.data,
             result.selected
         );
 
-
     } catch (error) {
 
-        console.error(
-            "GRAPH ERROR:",
-            error
-        );
+        console.error("GRAPH ERROR:", error);
 
         alert(
-            "ไม่สามารถเชื่อมต่อ Server ได้"
+            "ไม่สามารถโหลดข้อมูลกราฟได้"
         );
     }
 }
@@ -1707,10 +1716,25 @@ window.scrollTo({
 
 function closeGraphModal() {
 
-    const modal =
+    const graphModal =
         document.getElementById("graphModal");
 
-    modal.classList.remove("show");
+    const allDataModal =
+        document.getElementById("allDataModal");
+
+    if (graphModal) {
+        graphModal.classList.remove("show");
+    }
+
+    /*
+     * ถ้าปิดกราฟแล้ว
+     * ให้กลับไปหน้าข้อมูลทั้งหมด
+     */
+    if (allDataModal) {
+        allDataModal.classList.add("show");
+    }
+
+    document.body.classList.remove("modal-open");
 }
 
 
