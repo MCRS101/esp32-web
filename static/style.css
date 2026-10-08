@@ -1823,3 +1823,288 @@ body.modal-open {
     }
 
 }
+/* =========================================================
+   MOBILE DATABASE FIX
+========================================================= */
+
+.database-section,
+.database-grid,
+.database-table-panel,
+.export-panel {
+    min-width: 0;
+    max-width: 100%;
+}
+
+
+/* ป้องกัน panel ดันหน้าเว็บออกด้านข้าง */
+.database-table-panel {
+    overflow: hidden;
+}
+
+
+/* ตารางต้องอยู่ในพื้นที่ของ panel */
+.table-wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    -webkit-overflow-scrolling: touch;
+}
+
+
+/* ไม่ให้ table ดัน body */
+.table-wrapper table {
+    width: 100%;
+    max-width: 100%;
+}
+
+
+/* =========================================================
+   MOBILE DATABASE
+========================================================= */
+
+@media (max-width: 720px) {
+
+    .database-section {
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+
+    .database-grid {
+        width: 100%;
+        max-width: 100%;
+
+        grid-template-columns: minmax(0, 1fr);
+
+        overflow: hidden;
+    }
+
+
+    .database-table-panel,
+    .export-panel {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+
+        padding: 13px;
+
+        overflow: hidden;
+    }
+
+
+    /* -------------------------
+       Database Header
+    ------------------------- */
+
+    .panel-title-row {
+        width: 100%;
+
+        display: flex;
+
+        flex-wrap: wrap;
+
+        align-items: center;
+
+        justify-content: space-between;
+
+        gap: 10px;
+    }
+
+
+    .panel-title-row .panel-title {
+        min-width: 0;
+
+        flex: 1;
+
+        font-size: 14px;
+
+        line-height: 1.5;
+    }
+
+
+    .small-btn {
+        flex-shrink: 0;
+
+        padding: 8px 12px;
+
+        white-space: nowrap;
+
+        font-size: 12px;
+    }
+
+
+    /* -------------------------
+       Current Data Table
+    ------------------------- */
+
+    .table-wrapper {
+        width: 100%;
+
+        max-width: 100%;
+
+        overflow-x: auto;
+
+        padding-bottom: 4px;
+    }
+
+
+    .table-wrapper table {
+        width: 100%;
+
+        min-width: 600px;
+    }
+
+
+    .table-wrapper th,
+    .table-wrapper td {
+        padding: 8px 7px;
+
+        font-size: 11px;
+
+        white-space: nowrap;
+    }
+
+
+    /* -------------------------
+       Export
+    ------------------------- */
+
+    .export-panel {
+        margin-top: 0;
+    }
+
+
+    .export-panel input[type="date"] {
+        width: 100%;
+        max-width: 100%;
+
+        min-width: 0;
+
+        height: 44px;
+
+        padding: 10px;
+    }
+
+
+    .export-buttons {
+        width: 100%;
+
+        grid-template-columns: 1fr;
+
+        gap: 10px;
+    }
+
+
+    .export-btn {
+        width: 100%;
+
+        min-height: 48px;
+    }
+
+
+    .server-box {
+        width: 100%;
+
+        margin-top: 35px;
+    }
+
+}
+
+
+/* =========================================================
+   SMALL PHONE
+========================================================= */
+
+@media (max-width: 480px) {
+
+    .database-table-panel,
+    .export-panel {
+        padding: 11px;
+    }
+
+
+    .panel-title-row {
+        align-items: stretch;
+    }
+
+
+    .panel-title-row .panel-title {
+        width: 100%;
+
+        flex: 0 0 100%;
+    }
+
+
+    .small-btn {
+        width: 100%;
+
+        min-height: 42px;
+    }
+
+
+    .table-wrapper table {
+        min-width: 570px;
+    }
+
+
+    .table-wrapper th,
+    .table-wrapper td {
+        padding: 8px 6px;
+
+        font-size: 10px;
+    }
+
+
+    .export-panel .panel-title {
+        font-size: 17px;
+    }
+
+}
+@media (max-width: 480px) {
+
+    /* ซ่อนแกน X Y Z บนมือถือ */
+    .database-table-panel table th:nth-child(2),
+    .database-table-panel table td:nth-child(2),
+
+    .database-table-panel table th:nth-child(3),
+    .database-table-panel table td:nth-child(3),
+
+    .database-table-panel table th:nth-child(4),
+    .database-table-panel table td:nth-child(4) {
+        display: none;
+    }
+
+
+    .database-table-panel .table-wrapper table {
+        min-width: 100%;
+    }
+
+
+    .database-table-panel th,
+    .database-table-panel td {
+        font-size: 11px;
+        padding: 10px 6px;
+    }
+
+
+    .database-table-panel th:first-child,
+    .database-table-panel td:first-child {
+        width: 48%;
+    }
+
+
+    .database-table-panel th:nth-child(5),
+    .database-table-panel td:nth-child(5) {
+        width: 25%;
+    }
+
+
+    .database-table-panel th:nth-child(6),
+    .database-table-panel td:nth-child(6) {
+        width: 27%;
+    }
+
+}
