@@ -143,7 +143,9 @@ function initChart() {
                 },
 
                 tooltip: {
-
+    position: "nearest",
+    xAlign: "center",
+    yAlign: "bottom",
                     callbacks: {
 
                         label: function(context) {
@@ -1944,10 +1946,7 @@ function createSensorHistoryGraph(
                     : null
         );
 
-            const chartwidth = Math.min(
-                600,
-                Math.min(1200, rows.length * 45)
-            );
+const isMobile = window.innerWidth <= 600;
             canvas.style.width = chartwidth + "px";
             canvas.style.height = "400px";
     sensorGraph =
@@ -2081,6 +2080,12 @@ function createSensorHistoryGraph(
                     scales: {
 
                         x: {
+        ticks: {
+            autoSkip: true,
+            maxTicksLimit: 5,
+            maxRotation: 35,
+            minRotation: 0
+        },
 
                             title: {
 

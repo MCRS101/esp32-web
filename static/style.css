@@ -2854,91 +2854,37 @@ body.feature-modal-open {
     background: #071a2b;
 }
 
+
+/* กล่องกราฟประวัติข้อมูล */
 .graph-container {
     position: relative;
     width: 100%;
-    height: 450px;
+    max-width: 100%;
+    height: 320px;
     min-width: 0;
-    padding: 20px;
+    overflow-x: auto;
+    overflow-y: hidden;
     box-sizing: border-box;
 }
 
-/* เปิดพื้นที่ให้เลื่อนกราฟแนวนอนได้ */
-.graph-container {
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-}
-
+/* Canvas ของกราฟ */
 .graph-container canvas {
     display: block;
-    min-width: 900px;
-    height: 100% !important;
+    max-width: none;
 }
 
-.graph-detail {
-    margin: 16px 24px 24px;
-    padding: 22px;
-    border: 1px solid #244665;
-    border-radius: 14px;
-    background: #0d2135;
-}
-
-.graph-detail-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-}
-
-.graph-detail-item {
-    min-width: 0;
-    overflow-wrap: anywhere;
-}
-
-/* ===== Mobile ===== */
-@media (max-width: 768px) {
+/* ปรับ Modal บนมือถือ */
+@media (max-width: 600px) {
     .graph-modal {
-        padding: 6px;
-    }
-
-    .graph-modal-content {
-        max-height: calc(100vh - 12px);
-        border-radius: 12px;
-    }
-
-    .graph-modal-header {
-        padding: 14px;
-    }
-
-    .graph-modal-header h2 {
-        font-size: 18px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 10px;
+        overflow-x: hidden;
     }
 
     .graph-container {
-        height: 350px;
-        padding: 10px;
-    }
-
-    .graph-container canvas {
-        min-width: 850px;
-    }
-
-    .graph-detail {
-        margin: 10px;
-        padding: 14px;
-    }
-
-    .graph-detail-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
-    }
-
-    .graph-detail-item {
-        padding: 10px;
-        font-size: 13px;
-    }
-
-    .graph-detail-item strong {
-        overflow-wrap: anywhere;
+        height: 280px;
+        margin-bottom: 12px;
     }
 }
