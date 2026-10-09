@@ -37,12 +37,26 @@ import matplotlib.pyplot as plt
 
 from reportlab.platypus import Image as RLImage
 
+from flask import session
+from flask_bcrypt import Bcrypt
+from functools import wraps
+
 # =========================================================
 # FLASK
 # =========================================================
 
 app = Flask(__name__)
 
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
+
+if not app.config["SECRET_KEY"]:
+    raise RuntimeError("Please set SECRET_KEY environment variable")
+
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SECURE"] = True  # ใช้ HTTPS
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+bcrypt = Bcrypt(app)
 
 # =========================================================
 # INITIALIZE DATABASE
@@ -69,6 +83,201 @@ def index():
 
     return render_template("index.html")
 
+
+# =========================================================
+# AUTHENTICATION
+# =========================================================
+
+def login_required(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if "user_id" not in session:
+            return jsonify({
+                "success": False,
+                "message": "Please login first"
+            }), 401
+
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+# REGISTER
+@app.route("/api/auth/register", methods=["POST"])
+def register_user():
+    data = request.get_json(silent=True) or {}
+
+    username = data.get("username", "").strip()
+    email = data.get("email", "").strip().lower()
+    password = data.get("password", "")
+
+    if not username or not email or not password:
+        return jsonify({
+            "success": False,
+            "message": "username, email and password are required"
+        }), 400
+
+    if len(username) > 50 or len(email) > 255:
+        return jsonify({
+            "success": False,
+            "message": "Username or email is too long"
+        }), 400
+
+    if len(password) < 8:
+        return jsonify({
+            "success": False,
+            "message": "Password must be at least 8 characters"
+        }), 400
+
+    if len(password.encode("utf-8")) > 72:
+        return jsonify({
+            "success": False,
+            "message": "Password is too long"
+        }), 400
+
+    password_hash = bcrypt.generate_password_hash(
+        password
+    ).decode("utf-8")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            INSERT INTO users (username, email, password_hash)
+            VALUES (%s, %s, %s)
+        """, (username, email, password_hash))
+
+        conn.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "Registration successful"
+        }), 201
+
+    except Exception as e:
+        conn.rollback()
+
+        # Duplicate username/email
+        if getattr(e, "errno", None) == 1062:
+            return jsonify({
+                "success": False,
+                "message": "Username or email already exists"
+            }), 409
+
+        app.logger.exception("REGISTER ERROR")
+        return jsonify({
+            "success": False,
+            "message": "Registration failed"
+        }), 500
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# LOGIN
+@app.route("/api/auth/login", methods=["POST"])
+def login_user():
+    data = request.get_json(silent=True) or {}
+
+    username = data.get("username", "").strip()
+    password = data.get("password", "")
+
+    if not username or not password:
+        return jsonify({
+            "success": False,
+            "message": "Username and password are required"
+        }), 400
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT id, username, email, password_hash
+            FROM users
+            WHERE username = %s OR email = %s
+            LIMIT 1
+        """, (username, username.lower()))
+
+        user = cursor.fetchone()
+
+        if (
+            not user
+            or not bcrypt.check_password_hash(
+                user["password_hash"], password
+            )
+        ):
+            return jsonify({
+                "success": False,
+                "message": "Invalid username or password"
+            }), 401
+
+        # Prevent session fixation
+        session.clear()
+        session["user_id"] = user["id"]
+
+        return jsonify({
+            "success": True,
+            "message": "Login successful",
+            "user": {
+                "id": user["id"],
+                "username": user["username"],
+                "email": user["email"]
+            }
+        })
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# CURRENT USER
+@app.route("/api/auth/me", methods=["GET"])
+@login_required
+def current_user():
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT id, username, email, created_at
+            FROM users
+            WHERE id = %s
+        """, (session["user_id"],))
+
+        user = cursor.fetchone()
+
+        if not user:
+            session.clear()
+            return jsonify({
+                "success": False,
+                "message": "User not found"
+            }), 404
+
+        if user.get("created_at"):
+            user["created_at"] = user["created_at"].isoformat()
+
+        return jsonify({
+            "success": True,
+            "user": user
+        })
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# LOGOUT
+@app.route("/api/auth/logout", methods=["POST"])
+def logout_user():
+    session.clear()
+
+    return jsonify({
+        "success": True,
+        "message": "Logout successful"
+    })
 
 # =========================================================
 # REGISTER ESP32
@@ -1479,30 +1688,30 @@ def export_pdf(device_id):
 
 
         elements.append(table)
-        
+
         # =================================================
         # CREATE PGA + PENDULUM GRAPH FOR PDF
         # =================================================
-        
+
         if rows:
             timestamps = [
                 row["timestamp"].strftime("%d/%m %H:%M")
                 if row["timestamp"] else "-"
                 for row in rows
             ]
-        
+
             pga_values = [
                 float(row["pga"] or 0)
                 for row in rows
             ]
-        
+
             pendulum_values = [
                 float(row["pendulum"] or 0)
                 for row in rows
             ]
-        
+
             fig, ax = plt.subplots(figsize=(11, 4.5))
-        
+
             ax.plot(
                 range(len(rows)),
                 pga_values,
@@ -1510,7 +1719,7 @@ def export_pdf(device_id):
                 marker=".",
                 linewidth=1.5
             )
-        
+
             ax.plot(
                 range(len(rows)),
                 pendulum_values,
@@ -1518,25 +1727,25 @@ def export_pdf(device_id):
                 marker=".",
                 linewidth=1.5
             )
-        
+
             ax.set_title("PGA and Pendulum History")
             ax.set_xlabel("Date / Time")
             ax.set_ylabel("Value")
             ax.grid(True, alpha=0.3)
             ax.legend()
-        
+
             # ลดจำนวนป้ายเวลา เพื่อไม่ให้ทับกัน
             step = max(1, len(timestamps) // 10)
-        
+
             ax.set_xticks(range(0, len(timestamps), step))
             ax.set_xticklabels(
                 [timestamps[i] for i in range(0, len(timestamps), step)],
                 rotation=35,
                 ha="right"
             )
-        
+
             fig.tight_layout()
-        
+
             # บันทึกกราฟไว้ในหน่วยความจำ
             graph_buffer = BytesIO()
             fig.savefig(
@@ -1547,10 +1756,10 @@ def export_pdf(device_id):
             )
             plt.close(fig)
             graph_buffer.seek(0)
-        
+
             # ขึ้นหน้าใหม่ก่อนแสดงกราฟ
             from reportlab.platypus import PageBreak
-        
+
             elements.append(PageBreak())
             elements.append(
                 Paragraph("PGA and Pendulum Graph", title_style)
@@ -1559,7 +1768,7 @@ def export_pdf(device_id):
             elements.append(
                 RLImage(graph_buffer, width=750, height=300)
             )
-        
+
 # BUILD PDF
         document.build(elements)
 
