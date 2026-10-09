@@ -1944,7 +1944,7 @@ function createSensorHistoryGraph(
                     : null
         );
 
-            const chartwidth = math.min(
+            const chartwidth = Math.min(
                 900,
                 rows.length * 45
             );
