@@ -2086,50 +2086,44 @@ def get_export_rows(cursor, device_id):
 # GET DEVICES
 # =========================================================
 
-@app.route(
-    "/api/devices",
-    methods=["GET"]
-)
+
+@app.route("/api/devices", methods=["GET"])
 @login_required
 def get_devices():
-
     conn = get_connection()
-
-    cursor = conn.cursor(
-        dictionary=True
-    )
-
+    cursor = conn.cursor(dictionary=True)
 
     try:
-
-        cursor.execute(
-            """
-            SELECT *
-
-            FROM devices
-
-            ORDER BY id DESC
-            """
-        )
-
+        cursor.execute("""
+            SELECT
+                d.device_id,
+                d.status,
+                d.ip_address,
+                d.last_seen,
+                ud.added_at
+            FROM user_devices AS ud
+            JOIN devices AS d
+                ON d.device_id = ud.device_id
+            WHERE ud.user_id = %s
+            ORDER BY ud.added_at DESC
+        """, (session["user_id"],))
 
         rows = cursor.fetchall()
 
+        for row in rows:
+            for key in ("last_seen", "added_at"):
+                if row.get(key):
+                    row[key] = row[key].isoformat()
 
         return jsonify({
-
             "success": True,
-
+            "count": len(rows),
             "devices": rows
-
         })
 
-
     finally:
-
         cursor.close()
         conn.close()
-
 
 # =========================================================
 # RUN SERVER
