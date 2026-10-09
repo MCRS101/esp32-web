@@ -99,7 +99,7 @@
                             </div>
                             <div class="pendulum-floor"></div>
                         </div>
-                        <div class="vector-value">Vector: <span id="realtimeVector">0.00</span> g</div>
+                        <div class="vector-value">Acceleration: <span id="realtimeVector">0.00</span> m/s2</div>
                     </div>
                 </div>
             </div>
@@ -159,30 +159,68 @@
     <section class="section features-section">
         <div class="section-heading red-heading">
             <div class="section-icon">⚙</div>
-            <h2>Features ฟีเจอร์</h2>
+            <h2>หน้าต่างตั้งค่า</h2>
         </div>
 
-        <div class="panel settings-panel">
-            <div class="settings-title">☷ &nbsp;ตั้งค่าความรุนแรง</div>
+ 
+<div class="panel settings-panel">
 
-            <div class="setting-row">
-                <div class="setting-label">
-                    <span>ระดับ Sensitivity (ความไว)</span>
-                    <b id="sensitivityText">ปานกลาง</b>
-                </div>
-                <input id="sensitivityRange" type="range" min="0" max="2" step="1" value="1">
-                <div class="range-caption"><span>ต่ำ</span><span>สูง</span></div>
-            </div>
+    <!-- ตั้งค่าการแจ้งเตือน -->
+    <div class="settings-title">🔔 ตั้งค่าการแจ้งเตือน</div>
 
-            <div class="setting-row">
-                <div class="setting-label">
-                    <span>ตั้งค่าเตือนระดับ Richter</span>
-                    <b id="richterText">4.5</b>
-                </div>
-                <input id="richterRange" type="range" min="1" max="9" step="0.1" value="4.5">
-                <div class="range-caption"><span>1.0</span><span>9.0</span></div>
-            </div>
-        </div>
+    <div class="feature-description">
+        กำหนดระดับและค่าเกณฑ์สำหรับแต่ละการแจ้งเตือน
+    </div>
+
+    <div id="alertSettingsList" class="dynamic-list"></div>
+
+    <button type="button" id="addAlertBtn" class="add-row-btn"
+        onclick="addAlertRow()">
+        <span>＋</span> เพิ่มระดับการแจ้งเตือน
+    </button>
+
+    <p id="alertLimitMessage" class="limit-message">
+        เพิ่มได้สูงสุด 5 ระดับ
+    </p>
+
+    <div class="settings-divider"></div>
+
+    <!-- ตั้งค่าเบอร์โทรศัพท์ -->
+    <div class="settings-title">☎ ตั้งค่าเบอร์โทรศัพท์</div>
+
+    <div class="feature-description">
+        เพิ่มหมายเลขโทรศัพท์สำหรับใช้กับระบบแจ้งเตือน
+    </div>
+
+    <div id="phoneSettingsList" class="dynamic-list"></div>
+
+    <button type="button" id="addPhoneBtn" class="add-row-btn"
+        onclick="addPhoneRow()">
+        <span>＋</span> เพิ่มเบอร์โทรศัพท์
+    </button>
+
+    <div class="settings-actions">
+        <button type="button" class="save-settings-btn"
+            onclick="saveFeatureSettings()">
+            💾 บันทึกการตั้งค่า
+        </button>
+    </div>
+
+    <p id="settingsSaveMessage" class="settings-save-message"
+       aria-live="polite"></p>
+
+    <!-- เก็บ ID เดิมไว้เพื่อไม่ให้ dashboard.js เก่าเกิดข้อผิดพลาด -->
+    <div hidden>
+        <input id="sensitivityRange" type="range" min="0" max="2"
+            step="1" value="1">
+        <span id="sensitivityText">ปานกลาง</span>
+
+        <input id="richterRange" type="range" min="1" max="9"
+            step="0.1" value="4.5">
+        <span id="richterText">4.5</span>
+    </div>
+
+</div>
     </section>
 
     </div>

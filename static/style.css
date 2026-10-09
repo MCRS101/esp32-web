@@ -2169,3 +2169,223 @@ body.modal-open {
     }
 }
 
+
+/* ==========================================
+   FEATURE SETTINGS - ALERTS & PHONE NUMBERS
+========================================== */
+
+.feature-description {
+    margin: 12px 0 16px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.dynamic-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+.dynamic-row {
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid #29425f;
+    border-radius: 10px;
+    background: #08172a;
+}
+
+.dynamic-row-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.dynamic-row-title {
+    color: #e5eefc;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.dynamic-row-number {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    margin-right: 7px;
+    border-radius: 8px;
+    background: rgba(59, 130, 246, .2);
+    color: #72adff;
+}
+
+.dynamic-row label {
+    display: block;
+    margin: 10px 0 7px;
+    color: #aebfd3;
+    font-size: 13px;
+}
+
+.dynamic-row select,
+.dynamic-row input[type="tel"],
+.dynamic-row input[type="text"] {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding: 10px;
+    border: 1px solid #29425f;
+    border-radius: 7px;
+    background: #0b2037;
+    color: #e5eefc;
+    font: inherit;
+    font-size: 14px;
+}
+
+.dynamic-row input[type="range"] {
+    display: block;
+    width: 100%;
+    margin: 14px 0 8px;
+    accent-color: var(--pink);
+}
+
+.threshold-value {
+    color: #ff65b3;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.threshold-scale {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: #8195ae;
+    font-size: 12px;
+}
+
+.remove-row-btn {
+    flex: 0 0 auto;
+    min-width: 38px;
+    min-height: 38px;
+    border: 1px solid #e23c54;
+    border-radius: 8px;
+    background: rgba(239, 59, 87, .12);
+    color: #ff7185;
+    font-size: 20px;
+}
+
+.remove-row-btn:hover {
+    background: #e23c54;
+    color: white;
+}
+
+.add-row-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    margin-top: 14px;
+    padding: 10px;
+    border: 1px dashed #3985ed;
+    border-radius: 8px;
+    background: rgba(59, 130, 246, .09);
+    color: #83b8ff;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.add-row-btn span {
+    font-size: 20px;
+}
+
+.add-row-btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.limit-message {
+    margin: 9px 0 0;
+    color: #8195ae;
+    font-size: 12px;
+    text-align: center;
+}
+
+.settings-divider {
+    height: 1px;
+    margin: 24px 0;
+    background: #243b57;
+}
+
+.phone-input-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 42px;
+    gap: 8px;
+    align-items: end;
+}
+
+.phone-input-row > div {
+    min-width: 0;
+}
+
+.settings-actions {
+    margin-top: 22px;
+}
+
+.save-settings-btn {
+    width: 100%;
+    min-height: 46px;
+    padding: 11px 14px;
+    border: 1px solid #0b9f73;
+    border-radius: 8px;
+    background: rgba(16, 185, 129, .14);
+    color: #43e5ad;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.save-settings-btn:hover {
+    background: #0b9f73;
+    color: white;
+}
+
+.settings-save-message {
+    min-height: 20px;
+    margin: 10px 0 0;
+    color: #43e5ad;
+    font-size: 13px;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+    .features-section .settings-panel {
+        padding: 14px;
+    }
+
+    .dynamic-row {
+        padding: 12px;
+    }
+
+    .dynamic-row-header {
+        align-items: center;
+    }
+
+    .dynamic-row-title {
+        font-size: 13px;
+    }
+
+    .dynamic-row select,
+    .dynamic-row input[type="tel"],
+    .dynamic-row input[type="text"] {
+        font-size: 16px;
+    }
+
+    .add-row-btn,
+    .save-settings-btn {
+        min-height: 46px;
+    }
+}

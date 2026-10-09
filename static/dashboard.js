@@ -2109,3 +2109,267 @@ function createSensorHistoryGraph(
             }
         );
 }
+
+
+/* ==========================================
+   FEATURE SETTINGS
+   Alert thresholds + phone number list
+========================================== */
+
+const MAX_ALERT_ROWS = 5;
+
+const ALERT_LEVELS = [
+    "LOW",
+    "MODERATE",
+    "HIGH",
+    "SEVERE",
+    "CRITICAL"
+];
+
+let alertSettings = [];
+let phoneSettings = [];
+
+function escapeFeatureHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[char]);
+}
+
+function addAlertRow(data = {}) {
+    if (alertSettings.length >= MAX_ALERT_ROWS) {
+        updateAlertLimit();
+        return;
+    }
+
+    const nextLevel = ALERT_LEVELS[alertSettings.length];
+
+    alertSettings.push({
+        level: ALERT_LEVELS.includes(data.level)
+            ? data.level
+            : nextLevel,
+        threshold: Math.min(
+            15,
+            Math.max(0, Number(data.threshold ?? alertSettings.length * 3))
+        )
+    });
+
+    renderAlertRows();
+}
+
+function removeAlertRow(index) {
+    alertSettings.splice(index, 1);
+    renderAlertRows();
+}
+
+function renderAlertRows() {
+    const list = document.getElementById("alertSettingsList");
+    if (!list) return;
+
+    list.innerHTML = alertSettings.map((item, index) => `
+        <div class="dynamic-row">
+            <div class="dynamic-row-header">
+                <div class="dynamic-row-title">
+                    <span class="dynamic-row-number">${index + 1}</span>
+                    ระดับแจ้งเตือน ${index + 1}
+                </div>
+                <button type="button"
+                    class="remove-row-btn"
+                    aria-label="ลบระดับแจ้งเตือน ${index + 1}"
+                    onclick="removeAlertRow(${index})">×</button>
+            </div>
+
+            <label for="alertLevel${index}">ชื่อระดับ</label>
+            <select id="alertLevel${index}"
+                onchange="updateAlertLevel(${index}, this.value)">
+                ${ALERT_LEVELS.map(level => `
+                    <option value="${level}"
+                        ${item.level === level ? "selected" : ""}>
+                        ${level}
+                    </option>
+                `).join("")}
+            </select>
+
+            <label for="alertThreshold${index}">
+                ค่าเกณฑ์:
+                <strong class="threshold-value"
+                    id="alertThresholdValue${index}">
+                    ${Number(item.threshold).toFixed(1)}
+                </strong>
+            </label>
+
+            <input id="alertThreshold${index}"
+                type="range" min="0" max="15" step="0.1"
+                value="${item.threshold}"
+                oninput="updateAlertThreshold(${index}, this.value)">
+
+            <div class="threshold-scale">
+                <span>0.0</span>
+                <span>15.0</span>
+            </div>
+        </div>
+    `).join("");
+
+    updateAlertLimit();
+}
+
+function updateAlertLevel(index, value) {
+    if (!alertSettings[index]) return;
+    alertSettings[index].level = value;
+}
+
+function updateAlertThreshold(index, value) {
+    if (!alertSettings[index]) return;
+
+    const threshold = Math.min(15, Math.max(0, Number(value)));
+    alertSettings[index].threshold = threshold;
+
+    const output = document.getElementById(
+        `alertThresholdValue${index}`
+    );
+
+    if (output) output.textContent = threshold.toFixed(1);
+}
+
+function updateAlertLimit() {
+    const button = document.getElementById("addAlertBtn");
+    const message = document.getElementById("alertLimitMessage");
+
+    if (button) {
+        button.disabled = alertSettings.length >= MAX_ALERT_ROWS;
+    }
+
+    if (message) {
+        message.textContent = alertSettings.length >= MAX_ALERT_ROWS
+            ? "ครบ 5 ระดับแล้ว"
+            : `เพิ่มได้อีก ${MAX_ALERT_ROWS - alertSettings.length} ระดับ`;
+    }
+}
+
+function addPhoneRow(value = "") {
+    phoneSettings.push(String(value));
+    renderPhoneRows();
+}
+
+function removePhoneRow(index) {
+    phoneSettings.splice(index, 1);
+    renderPhoneRows();
+}
+
+function renderPhoneRows() {
+    const list = document.getElementById("phoneSettingsList");
+    if (!list) return;
+
+    list.innerHTML = phoneSettings.map((phone, index) => `
+        <div class="dynamic-row">
+            <div class="dynamic-row-header">
+                <div class="dynamic-row-title">
+                    <span class="dynamic-row-number">${index + 1}</span>
+                    เบอร์โทรศัพท์ ${index + 1}
+                </div>
+                <button type="button"
+                    class="remove-row-btn"
+                    aria-label="ลบเบอร์โทรศัพท์ ${index + 1}"
+                    onclick="removePhoneRow(${index})">×</button>
+            </div>
+
+            <label for="phoneNumber${index}">หมายเลขโทรศัพท์</label>
+            <input id="phoneNumber${index}"
+                type="tel"
+                inputmode="tel"
+                autocomplete="tel"
+                placeholder="เช่น 0812345678"
+                value="${escapeFeatureHTML(phone)}"
+                oninput="updatePhoneValue(${index}, this.value)">
+        </div>
+    `).join("");
+}
+
+function updatePhoneValue(index, value) {
+    phoneSettings[index] = value;
+}
+
+function saveFeatureSettings() {
+    // ตรวจสอบค่าเบอร์ที่กรอกไว้
+    const normalizedPhones = phoneSettings
+        .map(phone => phone.trim())
+        .filter(Boolean);
+
+    const invalidPhone = normalizedPhones.find(phone => {
+        const digits = phone.replace(/[\s()-]/g, "");
+        return !/^\+?\d{8,15}$/.test(digits);
+    });
+
+    if (invalidPhone) {
+        const message = document.getElementById("settingsSaveMessage");
+        if (message) {
+            message.textContent =
+                `กรุณาตรวจสอบรูปแบบเบอร์โทร: ${invalidPhone}`;
+        }
+        return;
+    }
+
+    const settings = {
+        alerts: alertSettings,
+        phones: normalizedPhones
+    };
+
+    try {
+        localStorage.setItem(
+            "esp32FeatureSettings",
+            JSON.stringify(settings)
+        );
+
+        const message = document.getElementById("settingsSaveMessage");
+        if (message) {
+            message.textContent = "บันทึกการตั้งค่าในเบราว์เซอร์แล้ว";
+        }
+    } catch (error) {
+        console.error("Cannot save feature settings:", error);
+
+        const message = document.getElementById("settingsSaveMessage");
+        if (message) {
+            message.textContent = "บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง";
+        }
+    }
+}
+
+function loadFeatureSettings() {
+    let saved = null;
+
+    try {
+        saved = JSON.parse(
+            localStorage.getItem("esp32FeatureSettings") || "null"
+        );
+    } catch (error) {
+        console.warn("Cannot read saved feature settings:", error);
+    }
+
+    alertSettings = [];
+    phoneSettings = [];
+
+    if (saved && Array.isArray(saved.alerts)) {
+        saved.alerts.slice(0, MAX_ALERT_ROWS).forEach(item => {
+            addAlertRow(item);
+        });
+    }
+
+    if (saved && Array.isArray(saved.phones)) {
+        phoneSettings = saved.phones.map(phone => String(phone));
+        renderPhoneRows();
+    }
+
+    // ค่าเริ่มต้นเมื่อยังไม่เคยบันทึก
+    if (alertSettings.length === 0) {
+        addAlertRow({ level: "LOW", threshold: 1.0 });
+        addAlertRow({ level: "MODERATE", threshold: 3.0 });
+    }
+
+    renderAlertRows();
+    renderPhoneRows();
+}
+
+document.addEventListener("DOMContentLoaded", loadFeatureSettings);
