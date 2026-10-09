@@ -6,13 +6,14 @@ import mysql.connector
 # MYSQL CONFIG
 # =========================================================
 
-MYSQL_HOST = os.getenv("MYSQL_HOST", "mysql.railway.internal")
-MYSQL_PORT = int(os.getenv("MYSQL_PORT", "3306"))
-MYSQL_USER = os.getenv("MYSQL_USER", "root")
-MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "EMCkzHMLRjQsYEXVBlhqEJpjlfIVgMiu")
-MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", "railway")
+MYSQL_HOST = os.getenv("MYSQL_HOST") or os.getenv("MYSQLHOST") or "mysql.railway.internal"
+MYSQL_PORT = int(os.getenv("MYSQL_PORT") or os.getenv("MYSQLPORT") or "3306")
+MYSQL_USER = os.getenv("MYSQL_USER") or os.getenv("MYSQLUSER") or "root"
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD") or os.getenv("MYSQLPASSWORD")
+MYSQL_DATABASE = os.getenv("MYSQL_DATABASE") or os.getenv("MYSQLDATABASE") or "railway"
 
-
+if not MYSQL_PASSWORD:
+    raise RuntimeError("Missing MySQL password environment variable")
 # =========================================================
 # DATABASE CONNECTION
 # =========================================================
@@ -137,6 +138,42 @@ def init_database():
         )
     """)
 
+    # =====================================================
+    # USERS
+    # =====================================================
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(50) NOT NULL UNIQUE,
+            email VARCHAR(255) NOT NULL UNIQUE,
+            password_hash VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # =====================================================
+    # USER DEVICES
+    # =====================================================
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_devices (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            device_id VARCHAR(100) NOT NULL UNIQUE,
+            added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+            CONSTRAINT fk_user_devices_user
+                FOREIGN KEY (user_id)
+                REFERENCES users(id)
+                ON DELETE CASCADE,
+
+            CONSTRAINT fk_user_devices_device
+                FOREIGN KEY (device_id)
+                REFERENCES devices(device_id)
+                ON DELETE CASCADE
+        )
+    """)
 
     conn.commit()
 
