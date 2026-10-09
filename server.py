@@ -61,18 +61,13 @@ bcrypt = Bcrypt(app)
 # =========================================================
 # INITIALIZE DATABASE
 # =========================================================
-
 try:
-
     init_database()
+    app.logger.info("Database initialization completed")
 
-except Exception as e:
-
-    print("====================================")
-    print("MYSQL DATABASE ERROR")
-    print(e)
-    print("====================================")
-
+except Exception:
+    app.logger.exception("MYSQL DATABASE INITIALIZATION FAILED")
+    raise
 
 # =========================================================
 # HOME
