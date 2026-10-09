@@ -2373,3 +2373,51 @@ function loadFeatureSettings() {
 }
 
 document.addEventListener("DOMContentLoaded", loadFeatureSettings);
+
+
+/* =========================================
+   FEATURE MODAL CONTROLS
+========================================= */
+
+function openFeatureModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("feature-modal-open");
+
+    const closeButton = modal.querySelector(".feature-modal-close");
+    if (closeButton) closeButton.focus();
+}
+
+function closeFeatureModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+
+    const anotherOpen = document.querySelector(
+        ".feature-modal.show"
+    );
+
+    if (!anotherOpen) {
+        document.body.classList.remove("feature-modal-open");
+    }
+}
+
+document.querySelectorAll(".feature-modal").forEach(modal => {
+    modal.addEventListener("click", event => {
+        if (event.target === modal) {
+            closeFeatureModal(modal.id);
+        }
+    });
+});
+
+document.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+        document.querySelectorAll(".feature-modal.show")
+            .forEach(modal => closeFeatureModal(modal.id));
+    }
+});

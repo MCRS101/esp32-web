@@ -163,63 +163,115 @@
         </div>
 
  
+
 <div class="panel settings-panel">
 
-    <!-- ตั้งค่าการแจ้งเตือน -->
-    <div class="settings-title">🔔 ตั้งค่าการแจ้งเตือน</div>
+    <div class="settings-title">⚙ ตั้งค่าระบบ</div>
 
-    <div class="feature-description">
-        กำหนดระดับและค่าเกณฑ์สำหรับแต่ละการแจ้งเตือน
-    </div>
-
-    <div id="alertSettingsList" class="dynamic-list"></div>
-
-    <button type="button" id="addAlertBtn" class="add-row-btn"
-        onclick="addAlertRow()">
-        <span>＋</span> เพิ่มระดับการแจ้งเตือน
+    <button type="button" class="feature-open-btn alert-open-btn"
+        onclick="openFeatureModal('alertSettingsModal')">
+        <span class="feature-open-icon">🔔</span>
+        <span class="feature-open-text">
+            <strong>ตั้งค่าการแจ้งเตือน</strong>
+            <small>กำหนดระดับและค่าเกณฑ์การแจ้งเตือน</small>
+        </span>
+        <span class="feature-open-arrow">›</span>
     </button>
 
-    <p id="alertLimitMessage" class="limit-message">
-        เพิ่มได้สูงสุด 5 ระดับ
-    </p>
-
-    <div class="settings-divider"></div>
-
-    <!-- ตั้งค่าเบอร์โทรศัพท์ -->
-    <div class="settings-title">☎ ตั้งค่าเบอร์โทรศัพท์</div>
-
-    <div class="feature-description">
-        เพิ่มหมายเลขโทรศัพท์สำหรับใช้กับระบบแจ้งเตือน
-    </div>
-
-    <div id="phoneSettingsList" class="dynamic-list"></div>
-
-    <button type="button" id="addPhoneBtn" class="add-row-btn"
-        onclick="addPhoneRow()">
-        <span>＋</span> เพิ่มเบอร์โทรศัพท์
+    <button type="button" class="feature-open-btn phone-open-btn"
+        onclick="openFeatureModal('phoneSettingsModal')">
+        <span class="feature-open-icon">☎</span>
+        <span class="feature-open-text">
+            <strong>ตั้งค่าเบอร์โทรศัพท์</strong>
+            <small>เพิ่มและจัดการเบอร์โทรศัพท์</small>
+        </span>
+        <span class="feature-open-arrow">›</span>
     </button>
 
-    <div class="settings-actions">
-        <button type="button" class="save-settings-btn"
-            onclick="saveFeatureSettings()">
-            💾 บันทึกการตั้งค่า
-        </button>
+</div>
+
+<!-- POPUP: ตั้งค่าการแจ้งเตือน -->
+<div id="alertSettingsModal" class="feature-modal"
+     aria-hidden="true">
+    <div class="feature-modal-content" role="dialog"
+         aria-modal="true" aria-labelledby="alertModalTitle">
+
+        <div class="feature-modal-header">
+            <div>
+                <h2 id="alertModalTitle">🔔 ตั้งค่าการแจ้งเตือน</h2>
+                <p>กำหนดระดับและค่าเกณฑ์ที่ต้องการ</p>
+            </div>
+            <button type="button" class="feature-modal-close"
+                onclick="closeFeatureModal('alertSettingsModal')"
+                aria-label="ปิด">×</button>
+        </div>
+
+        <div class="feature-modal-body">
+            <div id="alertSettingsList" class="dynamic-list"></div>
+
+            <button type="button" id="addAlertBtn"
+                class="add-row-btn" onclick="addAlertRow()">
+                ＋ เพิ่มระดับการแจ้งเตือน
+            </button>
+
+            <p id="alertLimitMessage" class="limit-message">
+                เพิ่มได้สูงสุด 5 ระดับ
+            </p>
+        </div>
+
+        <div class="feature-modal-footer">
+            <button type="button" class="modal-cancel-btn"
+                onclick="closeFeatureModal('alertSettingsModal')">
+                ยกเลิก
+            </button>
+            <button type="button" class="save-settings-btn"
+                onclick="saveFeatureSettings('alerts')">
+                💾 บันทึกการแจ้งเตือน
+            </button>
+        </div>
     </div>
+</div>
 
-    <p id="settingsSaveMessage" class="settings-save-message"
-       aria-live="polite"></p>
+<!-- POPUP: ตั้งค่าเบอร์โทรศัพท์ -->
+<div id="phoneSettingsModal" class="feature-modal"
+     aria-hidden="true">
+    <div class="feature-modal-content" role="dialog"
+         aria-modal="true" aria-labelledby="phoneModalTitle">
 
-    <!-- เก็บ ID เดิมไว้เพื่อไม่ให้ dashboard.js เก่าเกิดข้อผิดพลาด -->
-    <div hidden>
-        <input id="sensitivityRange" type="range" min="0" max="2"
-            step="1" value="1">
-        <span id="sensitivityText">ปานกลาง</span>
+        <div class="feature-modal-header">
+            <div>
+                <h2 id="phoneModalTitle">☎ ตั้งค่าเบอร์โทรศัพท์</h2>
+                <p>เพิ่มหมายเลขโทรศัพท์สำหรับระบบแจ้งเตือน</p>
+            </div>
+            <button type="button" class="feature-modal-close"
+                onclick="closeFeatureModal('phoneSettingsModal')"
+                aria-label="ปิด">×</button>
+        </div>
 
-        <input id="richterRange" type="range" min="1" max="9"
-            step="0.1" value="4.5">
-        <span id="richterText">4.5</span>
+        <div class="feature-modal-body">
+            <div id="phoneSettingsList" class="dynamic-list"></div>
+
+            <button type="button" id="addPhoneBtn"
+                class="add-row-btn" onclick="addPhoneRow()">
+                ＋ เพิ่มเบอร์โทรศัพท์
+            </button>
+
+            <p class="limit-message">
+                เพิ่มเบอร์โทรศัพท์ได้ตามต้องการ
+            </p>
+        </div>
+
+        <div class="feature-modal-footer">
+            <button type="button" class="modal-cancel-btn"
+                onclick="closeFeatureModal('phoneSettingsModal')">
+                ยกเลิก
+            </button>
+            <button type="button" class="save-settings-btn"
+                onclick="saveFeatureSettings('phones')">
+                💾 บันทึกเบอร์โทรศัพท์
+            </button>
+        </div>
     </div>
-
 </div>
     </section>
 
