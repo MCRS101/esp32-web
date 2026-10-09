@@ -143,9 +143,7 @@ function initChart() {
                 },
 
                 tooltip: {
-    position: "nearest",
-    xAlign: "center",
-    yAlign: "bottom",
+
                     callbacks: {
 
                         label: function(context) {
@@ -2040,7 +2038,9 @@ const isMobile = window.innerWidth <= 600;
 
                         },
 
-
+    position: "nearest",
+    xAlign: "center",
+    yAlign: "bottom",
                         tooltip: {
 
                             callbacks: {
