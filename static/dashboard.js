@@ -1945,8 +1945,8 @@ function createSensorHistoryGraph(
         );
 
             const chartwidth = Math.min(
-                900,
-                rows.length * 45
+                600,
+                Math.min(1200, rows.length * 45)
             );
             canvas.style.width = chartwidth + "px";
             canvas.style.height = "400px";
@@ -2022,7 +2022,7 @@ function createSensorHistoryGraph(
                     responsive: true,
 
                     maintainAspectRatio: false,
-
+                    resizeDelay: 100,
 
                     interaction: {
 
