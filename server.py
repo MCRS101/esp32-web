@@ -97,6 +97,49 @@ def login_required(func):
     return wrapper
 
 
+# =========================================================
+# DEVICE ACCESS CONTROL
+# =========================================================
+
+def device_access_required(func):
+    @wraps(func)
+
+    def wrapper(device_id, *args, **kwargs):
+
+        # ต้อง Login ก่อน
+        if "user_id" not in session:
+            return jsonify({
+                "success": False,
+                "message": "Please login first"
+            }), 401
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                SELECT 1
+                FROM user_devices
+                WHERE user_id = %s
+                  AND device_id = %s
+                LIMIT 1
+            """, (session["user_id"], device_id))
+
+            if cursor.fetchone() is None:
+                return jsonify({
+                    "success": False,
+                    "message": "You do not have access to this device"
+                }), 403
+
+        finally:
+            cursor.close()
+            conn.close()
+
+        return func(device_id, *args, **kwargs)
+
+    return wrapper
+
+
 # REGISTER
 @app.route("/api/auth/register", methods=["POST"])
 def register_user():
@@ -830,6 +873,8 @@ def receive_sensor_data():
     "/api/device/<device_id>/latest",
     methods=["GET"]
 )
+@login_required
+@device_access_required
 def get_latest(device_id):
 
     conn = get_connection()
@@ -894,6 +939,8 @@ def get_latest(device_id):
     "/api/device/<device_id>/history",
     methods=["GET"]
 )
+@login_required
+@device_access_required
 def get_history(device_id):
 
     conn = get_connection()
@@ -978,6 +1025,8 @@ def get_history(device_id):
         conn.close()
 
 @app.route("/api/device/<device_id>/graph", methods=["GET"])
+@login_required
+@device_access_required
 def get_graph_data(device_id):
     """
     ดึงข้อมูลสำหรับกราฟรอบเวลาที่ผู้ใช้เลือก
@@ -1083,6 +1132,8 @@ def get_graph_data(device_id):
     "/api/device/<device_id>/export/excel",
     methods=["GET"]
 )
+@login_required
+@device_access_required
 def export_excel(device_id):
 
     # -----------------------------------------
@@ -1458,6 +1509,8 @@ def export_excel(device_id):
     "/api/device/<device_id>/export/pdf",
     methods=["GET"]
 )
+@login_required
+@device_access_required
 def export_pdf(device_id):
 
     # -----------------------------------------
@@ -2037,6 +2090,7 @@ def get_export_rows(cursor, device_id):
     "/api/devices",
     methods=["GET"]
 )
+@login_required
 def get_devices():
 
     conn = get_connection()
