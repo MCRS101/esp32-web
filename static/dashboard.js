@@ -1944,11 +1944,18 @@ function createSensorHistoryGraph(
                     : null
         );
 
-
+            const chartwidth = math.min(
+                900,
+                rows.length * 45
+            );
+            canvas.style.width = chartwidth + "px";
+            canvas.style.height = "400px";
     sensorGraph =
         new Chart(
+
             canvas,
             {
+                
                 type: "line",
 
                 data: {
@@ -2520,11 +2527,12 @@ function updateExportPeriodFields() {
 }
 
 function exportReport(format) {
-    const deviceId = document.getElementById("deviceSelect").value;
+    // ใช้อุปกรณ์ที่เลือกไว้ใน dashboard
+    const deviceId = DEVICE_ID;
     const period = document.getElementById("exportPeriod").value;
 
     if (!deviceId) {
-        alert("กรุณาเลือก ESP32");
+        alert("กรุณาเลือก ESP32 ก่อน Export");
         return;
     }
 
@@ -2551,16 +2559,18 @@ function exportReport(format) {
 
     if (period === "year") {
         const year = document.getElementById("exportYear").value;
+
         if (!year || !/^\d{4}$/.test(year) ||
             Number(year) < 2000 || Number(year) > 2100) {
             alert("กรุณากรอกปีให้ถูกต้อง");
             return;
         }
+
         params.set("year", year);
     }
 
     const url =
-        `/api/device/${encodeURIComponent(deviceId)}/export/${format}?${params}`;
+        `/api/device/${encodeURIComponent(deviceId)}/export/${format}?${params.toString()}`;
 
     window.location.href = url;
 }
