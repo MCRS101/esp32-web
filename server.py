@@ -274,6 +274,149 @@ def logout_user():
         "message": "Logout successful"
     })
 
+
+# =========================================================
+# USER DEVICES
+# =========================================================
+
+# ตรวจสอบว่าอุปกรณ์เป็นของผู้ใช้ที่ Login อยู่หรือไม่
+def user_owns_device(cursor, user_id, device_id):
+    cursor.execute("""
+        SELECT 1
+        FROM user_devices
+        WHERE user_id = %s AND device_id = %s
+        LIMIT 1
+    """, (user_id, device_id))
+
+    return cursor.fetchone() is not None
+
+
+# เพิ่มอุปกรณ์เข้าบัญชี
+@app.route("/api/user/devices", methods=["POST"])
+@login_required
+def add_user_device():
+    data = request.get_json(silent=True) or {}
+
+    device_id = str(data.get("device_id", "")).strip()
+    device_token = str(data.get("device_token", "")).strip()
+
+    if not device_id or not device_token:
+        return jsonify({
+            "success": False,
+            "message": "device_id and device_token are required"
+        }), 400
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # ตรวจสอบว่า Device มีอยู่จริงและ Token ตรงกัน
+        cursor.execute("""
+            SELECT device_id
+            FROM devices
+            WHERE device_id = %s AND device_token = %s
+            LIMIT 1
+        """, (device_id, device_token))
+
+        device = cursor.fetchone()
+
+        if not device:
+            return jsonify({
+                "success": False,
+                "message": "Invalid device ID or token"
+            }), 403
+
+        # ถ้ามีผู้ใช้ผูกอุปกรณ์นี้แล้ว จะไม่อนุญาตให้แย่งอุปกรณ์
+        cursor.execute("""
+            SELECT user_id
+            FROM user_devices
+            WHERE device_id = %s
+            LIMIT 1
+        """, (device_id,))
+
+        owner = cursor.fetchone()
+
+        if owner:
+            if owner["user_id"] == session["user_id"]:
+                return jsonify({
+                    "success": True,
+                    "message": "Device already added",
+                    "device_id": device_id
+                })
+
+            return jsonify({
+                "success": False,
+                "message": "Device is already linked to another account"
+            }), 409
+
+        cursor.execute("""
+            INSERT INTO user_devices (user_id, device_id)
+            VALUES (%s, %s)
+        """, (session["user_id"], device_id))
+
+        conn.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "Device added successfully",
+            "device_id": device_id
+        }), 201
+
+    except Exception:
+        conn.rollback()
+        app.logger.exception("ADD USER DEVICE ERROR")
+
+        return jsonify({
+            "success": False,
+            "message": "Unable to add device"
+        }), 500
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# แสดงเฉพาะอุปกรณ์ของผู้ใช้ที่ Login อยู่
+@app.route("/api/user/devices", methods=["GET"])
+@login_required
+def get_user_devices():
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT
+                d.device_id,
+                d.status,
+                d.ip_address,
+                d.last_seen,
+                ud.added_at
+            FROM user_devices AS ud
+            JOIN devices AS d
+                ON d.device_id = ud.device_id
+            WHERE ud.user_id = %s
+            ORDER BY ud.added_at DESC
+        """, (session["user_id"],))
+
+        rows = cursor.fetchall()
+
+        for row in rows:
+            for key in ("last_seen", "added_at"):
+                if row.get(key):
+                    row[key] = row[key].isoformat()
+
+        return jsonify({
+            "success": True,
+            "count": len(rows),
+            "devices": rows
+        })
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
 # =========================================================
 # REGISTER ESP32
 # =========================================================
