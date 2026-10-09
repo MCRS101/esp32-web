@@ -1294,21 +1294,6 @@ td {
 }
 
 
-/* Graph */
-
-.graph-container {
-
-    padding: 25px;
-
-    height: 400px;
-}
-
-
-.graph-container canvas {
-
-    width: 100% !important;
-    height: 100% !important;
-}
 
 
 /* Detail */
