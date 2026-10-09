@@ -1766,29 +1766,22 @@ async function openSensorGraph(row) {
    ปิด Graph Modal
 --------------------------------------------------------- */
 
+
 function closeGraphModal() {
-
-    const graphModal =
-        document.getElementById("graphModal");
-
-    const allDataModal =
-        document.getElementById("allDataModal");
+    const graphModal = document.getElementById("graphModal");
+    const allDataModal = document.getElementById("allDataModal");
 
     if (graphModal) {
         graphModal.classList.remove("show");
     }
 
-    /*
-     * ถ้าปิดกราฟแล้ว
-     * ให้กลับไปหน้าข้อมูลทั้งหมด
-     */
     if (allDataModal) {
         allDataModal.classList.add("show");
     }
 
-    document.body.classList.remove("modal-open");
+    // หน้าข้อมูลทั้งหมดยังเปิดอยู่ จึงคงการล็อก Scroll ไว้
+    document.body.classList.add("modal-open");
 }
-
 
 /* ---------------------------------------------------------
    แสดงข้อมูลที่เลือก
@@ -1863,263 +1856,244 @@ function showSelectedGraphData(row) {
    สร้างกราฟ
 --------------------------------------------------------- */
 
-function createSensorHistoryGraph(
-    rows,
-    selected
-) {
 
-    const canvas =
-        document.getElementById(
-            "sensorGraph"
-        );
+function createSensorHistoryGraph(rows, selected) {
+    const canvas = document.getElementById("sensorGraph");
 
+    if (!canvas) {
+        console.error("ไม่พบ canvas sensorGraph");
+        return;
+    }
 
-    // ถ้ามีกราฟเก่าอยู่ ให้ทำลายก่อน
+    if (typeof Chart === "undefined") {
+        console.error("ไม่พบ Chart.js");
+        return;
+    }
+
+    // ล้างกราฟเดิม
     if (sensorGraph) {
-
         sensorGraph.destroy();
-
         sensorGraph = null;
     }
 
-
-    // เรียงตามเวลา
-    rows.sort(
+    // ป้องกันการแก้ไข array ต้นฉบับ
+    const sortedRows = [...(rows || [])].sort(
         (a, b) =>
-            new Date(a.timestamp) -
-            new Date(b.timestamp)
+            new Date(a.timestamp) - new Date(b.timestamp)
     );
 
+    if (sortedRows.length === 0) {
+        console.warn("ไม่มีข้อมูลสำหรับสร้างกราฟ");
+        return;
+    }
 
-    const labels = rows.map(row => {
+    // ปรับขนาดกราฟตามหน้าจอ
+    const isMobile = window.innerWidth <= 600;
+    canvas.style.width = "100%";
+    canvas.style.height = isMobile ? "280px" : "400px";
+    canvas.style.maxWidth = "100%";
 
-        const date =
-            new Date(row.timestamp);
+    const labels = sortedRows.map(row => {
+        const date = new Date(row.timestamp);
 
-        return date.toLocaleTimeString(
-            "th-TH",
-            {
+        return isNaN(date.getTime())
+            ? "-"
+            : date.toLocaleTimeString("th-TH", {
                 hour: "2-digit",
                 minute: "2-digit",
                 second: "2-digit"
-            }
-        );
-
+            });
     });
 
+    const pgaData = sortedRows.map(
+        row => Number(row.pga ?? 0)
+    );
 
-    const pgaData =
-        rows.map(row =>
-            Number(row.pga || 0)
-        );
+    const pendulumData = sortedRows.map(
+        row => Number(row.pendulum ?? 0)
+    );
 
+    // หาจุดของข้อมูลที่ผู้ใช้เลือก
+    const selectedIndex = sortedRows.findIndex(
+        row => Number(row.id) === Number(selected?.id)
+    );
 
-    const pendulumData =
-        rows.map(row =>
-            Number(row.pendulum || 0)
-        );
+    const selectedPGA = sortedRows.map(
+        (row, index) =>
+            index === selectedIndex
+                ? Number(row.pga ?? 0)
+                : null
+    );
 
+    const selectedPendulum = sortedRows.map(
+        (row, index) =>
+            index === selectedIndex
+                ? Number(row.pendulum ?? 0)
+                : null
+    );
 
-    /*
-     * หาตำแหน่งของข้อมูลที่ผู้ใช้คลิก
-     */
+    sensorGraph = new Chart(canvas, {
+        type: "line",
 
-    const selectedIndex =
-        rows.findIndex(
-            row =>
-                Number(row.id) ===
-                Number(selected.id)
-        );
+        data: {
+            labels,
 
-
-    /*
-     * จุดที่เลือก
-     */
-
-    const selectedPoint =
-        rows.map(
-            (row, index) =>
-                index === selectedIndex
-                    ? Number(row.pga || 0)
-                    : null
-        );
-
-const isMobile = window.innerWidth <= 600;
-            canvas.style.width = chartwidth + "px";
-            canvas.style.height = "400px";
-    sensorGraph =
-        new Chart(
-
-            canvas,
-            {
-                
-                type: "line",
-
-                data: {
-
-                    labels: labels,
-
-                    datasets: [
-
-                        {
-                            label: "PGA",
-
-                            data: pgaData,
-
-                            borderWidth: 2,
-
-                            tension: 0.25,
-
-                            pointRadius: 3,
-
-                            pointHoverRadius: 6,
-
-                            fill: false
-                        },
-
-
-                        {
-                            label: "Pendulum",
-
-                            data: pendulumData,
-
-                            borderWidth: 2,
-
-                            tension: 0.25,
-
-                            pointRadius: 3,
-
-                            pointHoverRadius: 6,
-
-                            fill: false
-                        },
-
-
-                        {
-                            label: "ข้อมูลที่เลือก",
-
-                            data: selectedPoint,
-
-                            showLine: false,
-
-                            pointRadius: 9,
-
-                            pointHoverRadius: 11,
-
-                            borderWidth: 3
-                        }
-
-                    ]
-
+            datasets: [
+                {
+                    label: "PGA",
+                    data: pgaData,
+                    borderColor: "#38bdf8",
+                    backgroundColor: "transparent",
+                    borderWidth: 2,
+                    pointRadius: isMobile ? 1 : 3,
+                    pointHoverRadius: 6,
+                    tension: 0.25,
+                    fill: false
                 },
-
-
-                options: {
-
-                    responsive: true,
-
-                    maintainAspectRatio: false,
-                    resizeDelay: 100,
-
-                    interaction: {
-
-                        mode: "index",
-
-                        intersect: false
-
-                    },
-
-
-                    plugins: {
-
-                        legend: {
-
-                            display: true
-
-                        },
-
-    position: "nearest",
-    xAlign: "center",
-    yAlign: "bottom",
-                        tooltip: {
-
-                            callbacks: {
-
-                                title: function(
-                                    tooltipItems
-                                ) {
-
-                                    return (
-                                        tooltipItems[0]
-                                            .label
-                                    );
-                                },
-
-                                label: function(
-                                    context
-                                ) {
-
-                                    return (
-                                        context.dataset
-                                            .label
-                                        + ": "
-                                        + Number(
-                                            context.raw
-                                        ).toFixed(4)
-                                    );
-
-                                }
-
-                            }
-
-                        }
-
-                    },
-
-
-                    scales: {
-
-                        x: {
-        ticks: {
-            autoSkip: true,
-            maxTicksLimit: 5,
-            maxRotation: 35,
-            minRotation: 0
+                {
+                    label: "Pendulum",
+                    data: pendulumData,
+                    borderColor: "#fb7185",
+                    backgroundColor: "transparent",
+                    borderWidth: 2,
+                    pointRadius: isMobile ? 1 : 3,
+                    pointHoverRadius: 6,
+                    tension: 0.25,
+                    fill: false
+                },
+                {
+                    label: "PGA ที่เลือก",
+                    data: selectedPGA,
+                    borderColor: "#ffffff",
+                    backgroundColor: "#38bdf8",
+                    showLine: false,
+                    pointRadius: 7,
+                    pointHoverRadius: 9
+                },
+                {
+                    label: "Pendulum ที่เลือก",
+                    data: selectedPendulum,
+                    borderColor: "#ffffff",
+                    backgroundColor: "#fb7185",
+                    showLine: false,
+                    pointRadius: 7,
+                    pointHoverRadius: 9
+                }
+            ]
         },
 
-                            title: {
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            resizeDelay: 100,
 
-                                display: true,
+            interaction: {
+                mode: "index",
+                intersect: false
+            },
 
-                                text: "เวลา"
-
-                            }
-
-                        },
-
-
-                        y: {
-
-                            beginAtZero: true,
-
-                            suggestedMax: 2,
-
-                            title: {
-
-                                display: true,
-
-                                text: "ค่า"
-
-                            }
-
-                        }
-
-                    }
-
+            layout: {
+                padding: {
+                    top: 4,
+                    right: 8,
+                    bottom: 0,
+                    left: 0
                 }
+            },
 
+            plugins: {
+                legend: {
+                    display: true,
+                    position: "top",
+                    labels: {
+                        boxWidth: 12,
+                        boxHeight: 8,
+                        padding: isMobile ? 10 : 16,
+                        font: {
+                            size: isMobile ? 10 : 12
+                        }
+                    }
+                },
+
+                tooltip: {
+                    position: "nearest",
+                    xAlign: "center",
+                    yAlign: "bottom",
+
+                    callbacks: {
+                        label: function(context) {
+                            if (context.raw == null) {
+                                return null;
+                            }
+
+                            return (
+                                context.dataset.label +
+                                ": " +
+                                Number(context.raw).toFixed(4)
+                            );
+                        }
+                    }
+                }
+            },
+
+            scales: {
+                x: {
+                    ticks: {
+                        autoSkip: true,
+                        maxTicksLimit: isMobile ? 4 : 10,
+                        maxRotation: isMobile ? 35 : 0,
+                        minRotation: 0,
+                        font: {
+                            size: isMobile ? 9 : 11
+                        }
+                    },
+
+                    title: {
+                        display: !isMobile,
+                        text: "เวลา"
+                    },
+
+                    grid: {
+                        color: "rgba(148, 163, 184, 0.08)"
+                    }
+                },
+
+                y: {
+                    beginAtZero: true,
+                    suggestedMax: 2,
+
+                    ticks: {
+                        maxTicksLimit: 7,
+                        font: {
+                            size: isMobile ? 10 : 12
+                        }
+                    },
+
+                    title: {
+                        display: !isMobile,
+                        text: "ค่า"
+                    },
+
+                    grid: {
+                        color: "rgba(148, 163, 184, 0.08)"
+                    }
+                }
             }
-        );
+        }
+    });
+
+    // ช่วยให้ Chart.js คำนวณขนาดใหม่หลังเปิด Modal
+    requestAnimationFrame(() => {
+        if (sensorGraph) {
+            sensorGraph.resize();
+        }
+    });
+
+    console.log("สร้างกราฟสำเร็จ", {
+        total: sortedRows.length,
+        selectedId: selected?.id,
+        selectedIndex
+    });
 }
 
 
