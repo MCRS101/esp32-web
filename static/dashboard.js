@@ -2152,7 +2152,7 @@ function addAlertRow(data = {}) {
             ? data.level
             : nextLevel,
         threshold: Math.min(
-            15,
+            2,
             Math.max(0, Number(data.threshold ?? alertSettings.length * 3))
         )
     });
@@ -2165,6 +2165,8 @@ function removeAlertRow(index) {
     renderAlertRows();
 }
 
+
+
 function renderAlertRows() {
     const list = document.getElementById("alertSettingsList");
     if (!list) return;
@@ -2176,10 +2178,13 @@ function renderAlertRows() {
                     <span class="dynamic-row-number">${index + 1}</span>
                     ระดับแจ้งเตือน ${index + 1}
                 </div>
+
                 <button type="button"
                     class="remove-row-btn"
-                    aria-label="ลบระดับแจ้งเตือน ${index + 1}"
-                    onclick="removeAlertRow(${index})">×</button>
+                    onclick="removeAlertRow(${index})"
+                    aria-label="ลบระดับแจ้งเตือน ${index + 1}">
+                    ×
+                </button>
             </div>
 
             <label for="alertLevel${index}">ชื่อระดับ</label>
@@ -2194,26 +2199,64 @@ function renderAlertRows() {
             </select>
 
             <label for="alertThreshold${index}">
-                ค่าเกณฑ์:
-                <strong class="threshold-value"
-                    id="alertThresholdValue${index}">
-                    ${Number(item.threshold).toFixed(1)}
+                    ค่า PGA :
+                    <strong id="alertThresholdValue${index}">
+                        ${Number(item.threshold).toFixed(1)}
+                    </strong>
+            </label>
+            <input
+                class="pga-number-input"
+                id="alertThreshold${index}"
+                type="range"
+                min="0"
+                max="2"
+                step="0.1"
+                value="${Number(item.threshold).toFixed(1)}"
+                oninput="updateAlertThreshold(${index}, this.value)"
+                onblur="validateAlertThreshold(${index})"
+                required
+            >
+            <div class="threshold-scale">
+                <span>0.0 G</span>
+                <span>2.0 G</span>
+            </div>
+
+            <label for="sirenSpeed${index}">
+                ความเร็วไซเรน:
+                <strong id="sirenSpeedValue${index}">
+                    ${Number(item.sirenSpeed ?? 1).toFixed(1)}
                 </strong>
             </label>
 
-            <input id="alertThreshold${index}"
-                type="range" min="0" max="15" step="0.1"
-                value="${item.threshold}"
-                oninput="updateAlertThreshold(${index}, this.value)">
+            <input
+                id="sirenSpeed${index}"
+                type="range"
+                min="0"
+                max="2"
+                step="0.1"
+                value="${Number(item.sirenSpeed ?? 1)}"
+                oninput="updateSirenSpeed(${index}, this.value)"
+            >
 
             <div class="threshold-scale">
                 <span>0.0</span>
-                <span>15.0</span>
+                <span>2.0</span>
             </div>
         </div>
     `).join("");
 
     updateAlertLimit();
+}
+
+function updateSirenSpeed(index, value) {
+    const speed = Math.max(0, Math.min(2, Number(value)));
+
+    alertSettings[index].sirenSpeed = speed;
+
+    const output = document.getElementById(`sirenSpeedValue${index}`);
+    if (output) {
+        output.textContent = speed.toFixed(1);
+    }
 }
 
 function updateAlertLevel(index, value) {
@@ -2224,7 +2267,7 @@ function updateAlertLevel(index, value) {
 function updateAlertThreshold(index, value) {
     if (!alertSettings[index]) return;
 
-    const threshold = Math.min(15, Math.max(0, Number(value)));
+    const threshold = Math.min(2, Math.max(0, Number(value)));
     alertSettings[index].threshold = threshold;
 
     const output = document.getElementById(
@@ -2421,3 +2464,4 @@ document.addEventListener("keydown", event => {
             .forEach(modal => closeFeatureModal(modal.id));
     }
 });
+
