@@ -2108,3 +2108,64 @@ body.modal-open {
     }
 
 }
+
+/* ESP32 DEVICE SELECTOR */
+
+.device-info,
+.device-controls {
+    min-width: 0;
+}
+
+.device-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.device-controls label {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+#deviceSelect {
+    width: min(280px, 100%);
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid #3478e5;
+    border-radius: 7px;
+    background: #08172a;
+    color: var(--text);
+    font: inherit;
+}
+
+#deviceSelect:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+    .device-bar {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .device-controls {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        justify-content: stretch;
+        width: 100%;
+    }
+
+    #deviceSelect {
+        width: 100%;
+        min-height: 44px;
+    }
+
+    #deviceStatus {
+        overflow-wrap: anywhere;
+    }
+}
+

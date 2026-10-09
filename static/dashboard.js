@@ -174,101 +174,153 @@ function initChart() {
 }
 
 
-/* =====================================================
-   LOAD DEVICE
-===================================================== */
+// =====================================================
+// ESP32 DEVICE SELECTOR
+// =====================================================
 
 async function loadDevice() {
+    const select = document.getElementById("deviceSelect");
+    const nameElement = document.getElementById("deviceName");
+    const statusElement = document.getElementById("deviceStatus");
+
+    if (!select) {
+        console.error("ไม่พบ deviceSelect ใน index.html");
+        return;
+    }
+
+    select.disabled = true;
+    select.innerHTML = '<option value="">กำลังโหลดอุปกรณ์...</option>';
 
     try {
-
-        console.log("Loading devices...");
-
-        const response = await fetch(
-            "/api/devices",
-            {
-                cache: "no-store"
-            }
-        );
+        const response = await fetch("/api/devices", {
+            cache: "no-store"
+        });
 
         if (!response.ok) {
-
-            throw new Error(
-                `HTTP ${response.status}`
-            );
-
+            throw new Error(`HTTP ${response.status}`);
         }
 
         const result = await response.json();
 
-        console.log("Devices API:", result);
+        // รองรับ API ที่คืน array โดยตรง
+        // หรือคืน object เช่น { success: true, devices: [...] }
+        const devices = Array.isArray(result)
+            ? result
+            : (result.devices || []);
 
-        if (
-            !result.success ||
-            !result.devices ||
-            result.devices.length === 0
-        ) {
+        select.innerHTML = "";
 
-            throw new Error(
-                "No ESP32 device found"
-            );
+        if (devices.length === 0) {
+            DEVICE_ID = null;
 
+            select.innerHTML =
+                '<option value="">ไม่มี ESP32 ที่ลงทะเบียน</option>';
+
+            nameElement.textContent = "ไม่พบอุปกรณ์";
+            statusElement.textContent = "● ไม่มีอุปกรณ์";
+            statusElement.className = "device-offline";
+
+            return;
         }
 
-        const device = result.devices[0];
+        devices.forEach(function (device) {
+            const id = device.device_id;
 
-        DEVICE_ID = device.device_id;
+            if (!id) return;
 
-        console.log(
-            "Selected device:",
-            DEVICE_ID
+            const option = document.createElement("option");
+            option.value = id;
+            option.textContent = device.device_name
+                ? `${device.device_name} (${id})`
+                : id;
+
+            select.appendChild(option);
+        });
+
+        if (select.options.length === 0) {
+            DEVICE_ID = null;
+            select.innerHTML =
+                '<option value="">ข้อมูลอุปกรณ์ไม่ถูกต้อง</option>';
+            nameElement.textContent = "ไม่พบอุปกรณ์";
+            statusElement.textContent = "● ไม่มีอุปกรณ์";
+            statusElement.className = "device-offline";
+            return;
+        }
+
+        // คงอุปกรณ์เดิมที่เลือกไว้ หากยังอยู่ในรายการ
+        const previousId = DEVICE_ID;
+        const previousStillExists = devices.some(
+            device => device.device_id === previousId
         );
 
-        document
-            .getElementById("deviceName")
-            .textContent = DEVICE_ID;
+        select.value = previousStillExists
+            ? previousId
+            : select.options[0].value;
 
+        await selectDevice(select.value);
 
-        /*
-         * สำคัญ
-         * เช็คสถานะจาก API
-         */
+    } catch (error) {
+        console.error("LOAD DEVICES ERROR:", error);
 
-        if (
-            device.status === "online" ||
-            device.status === "connected"
-        ) {
+        select.innerHTML =
+            '<option value="">โหลดอุปกรณ์ไม่สำเร็จ</option>';
 
-            setOnline();
+        nameElement.textContent = "เชื่อมต่อรายการอุปกรณ์ไม่ได้";
+        statusElement.textContent = "● API Error";
+        statusElement.className = "device-offline";
 
-        }
-        else {
-
-            setOffline();
-
-        }
-
-
-        /*
-         * โหลดข้อมูลล่าสุด
-         */
-
-        await getLatest();
-
+    } finally {
+        select.disabled = false;
     }
-
-    catch (error) {
-
-        console.error(
-            "LOAD DEVICE ERROR:",
-            error
-        );
-
-        setOffline();
-
-    }
-
 }
+
+
+// เรียกเมื่อเลือก ESP32
+async function selectDevice(deviceId) {
+    if (!deviceId) return;
+
+    DEVICE_ID = deviceId;
+
+    const nameElement = document.getElementById("deviceName");
+    const statusElement = document.getElementById("deviceStatus");
+
+    nameElement.textContent = deviceId;
+    statusElement.textContent = "● กำลังโหลดข้อมูล...";
+    statusElement.className = "device-offline";
+
+    // ล้างข้อมูลตารางล่าสุดของอุปกรณ์ก่อนหน้า
+    const table = document.getElementById("dataTable");
+    if (table) table.innerHTML = "";
+
+    // รีเซ็ตข้อมูลกราฟ Real-time
+    if (vibrationChart) {
+        vibrationChart.data.labels = [];
+        vibrationChart.data.datasets.forEach(dataset => {
+            dataset.data = [];
+        });
+        vibrationChart.update("none");
+    }
+
+    currentPGA = 0;
+    targetPGA = 0;
+    currentPendulum = 0;
+    targetPendulum = 0;
+    lastTableTimestamp = null;
+
+    // ดึงข้อมูลล่าสุดของอุปกรณ์ที่เลือก
+    await getLatest();
+}
+
+
+// ผูก event เพียงครั้งเดียว
+document.getElementById("deviceSelect")?.addEventListener(
+    "change",
+    function () {
+        selectDevice(this.value);
+    }
+);
+
+
 
 
 /* =====================================================

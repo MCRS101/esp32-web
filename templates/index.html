@@ -21,14 +21,28 @@
 
 <main class="container">
 
-    <!-- DEVICE BAR -->
-    <section class="device-bar">
-        <div>
-            <div class="device-name" id="deviceName">Loading...</div>
-            <small>Sensor Monitoring System</small>
+
+<!-- DEVICE BAR -->
+<section class="device-bar">
+    <div class="device-info">
+        <div class="device-name" id="deviceName">กำลังโหลดอุปกรณ์...</div>
+        <small>Sensor Monitoring System</small>
+    </div>
+
+    <div class="device-controls">
+        <label for="deviceSelect">เลือกอุปกรณ์ ESP32</label>
+
+        <select id="deviceSelect">
+            <option value="">กำลังโหลดรายการ...</option>
+        </select>
+
+        <div id="deviceStatus" class="device-offline">
+            ● กำลังตรวจสอบ...
         </div>
-        <div id="deviceStatus" class="device-offline">● Checking...</div>
-    </section>
+    </div>
+</section>
+
+
 
     <!-- TOP DASHBOARD: VIEWPORT LEFT / FEATURES RIGHT -->
     <div class="dashboard-top-grid">
