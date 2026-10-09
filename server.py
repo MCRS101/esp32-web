@@ -1470,6 +1470,67 @@ def export_pdf(device_id):
         conn.close()
         
 
+from datetime import datetime
+from flask import request, jsonify
+
+def get_export_rows(cursor, device_id):
+    period = request.args.get("period", "all")
+    date_value = request.args.get("date")
+    month_value = request.args.get("month")
+    year_value = request.args.get("year")
+
+    query = """
+        SELECT
+            timestamp, accel_x, accel_y, accel_z,
+            pga, peak_pga, avg_pga, pendulum,
+            level, direction, estimated_ml
+        FROM sensor_data
+        WHERE device_id = %s
+    """
+    params = [device_id]
+
+    if period == "day":
+        try:
+            datetime.strptime(date_value or "", "%Y-%m-%d")
+        except ValueError:
+            return None, ("รูปแบบวันที่ไม่ถูกต้อง", 400)
+
+        query += " AND timestamp >= %s AND timestamp < DATE_ADD(%s, INTERVAL 1 DAY)"
+        params.extend([date_value, date_value])
+
+    elif period == "month":
+        try:
+            datetime.strptime(month_value or "", "%Y-%m")
+        except ValueError:
+            return None, ("รูปแบบเดือนไม่ถูกต้อง", 400)
+
+        query += """
+            AND timestamp >= STR_TO_DATE(CONCAT(%s, '-01'), '%%Y-%%m-%%d')
+            AND timestamp < DATE_ADD(
+                STR_TO_DATE(CONCAT(%s, '-01'), '%%Y-%%m-%%d'),
+                INTERVAL 1 MONTH
+            )
+        """
+        params.extend([month_value, month_value])
+
+    elif period == "year":
+        if not year_value or not year_value.isdigit() or not 2000 <= int(year_value) <= 2100:
+            return None, ("รูปแบบปีไม่ถูกต้อง", 400)
+
+        query += """
+            AND timestamp >= %s AND timestamp < %s
+        """
+        params.extend([
+            f"{year_value}-01-01",
+            f"{int(year_value) + 1}-01-01"
+        ])
+
+    elif period != "all":
+        return None, ("ช่วงข้อมูลไม่ถูกต้อง", 400)
+
+    query += " ORDER BY timestamp ASC"
+    cursor.execute(query, tuple(params))
+    return cursor.fetchall(), None
 # =========================================================
 # GET DEVICES
 # =========================================================

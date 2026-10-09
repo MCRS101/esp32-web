@@ -2119,11 +2119,11 @@ function createSensorHistoryGraph(
 const MAX_ALERT_ROWS = 5;
 
 const ALERT_LEVELS = [
-    "LOW",
-    "MODERATE",
-    "HIGH",
-    "SEVERE",
-    "CRITICAL"
+    "ต่ำ",
+    "ปานกลาง",
+    "สูง",
+    "รุนแรง",
+    "วิกฤต"
 ];
 
 let alertSettings = [];
@@ -2231,16 +2231,16 @@ function renderAlertRows() {
             <input
                 id="sirenSpeed${index}"
                 type="range"
-                min="0"
-                max="2"
+                min="0.1"
+                max="10"
                 step="0.1"
                 value="${Number(item.sirenSpeed ?? 1)}"
                 oninput="updateSirenSpeed(${index}, this.value)"
             >
 
             <div class="threshold-scale">
-                <span>0.0</span>
-                <span>2.0</span>
+                <span>เร็ว</span>
+                <span>ช้า</span>
             </div>
         </div>
     `).join("");
@@ -2249,7 +2249,7 @@ function renderAlertRows() {
 }
 
 function updateSirenSpeed(index, value) {
-    const speed = Math.max(0, Math.min(2, Number(value)));
+    const speed = Math.max(0.1, Math.min(10, Number(value)));
 
     alertSettings[index].sirenSpeed = speed;
 
@@ -2465,3 +2465,112 @@ document.addEventListener("keydown", event => {
     }
 });
 
+
+async function loadExportDevices() {
+    const select = document.getElementById("deviceSelect");
+    if (!select) return;
+
+    try {
+        const response = await fetch("/api/devices", {
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        const devices = result.devices || [];
+
+        select.replaceChildren();
+
+        if (devices.length === 0) {
+            select.add(new Option("ยังไม่มี ESP32 ที่ลงทะเบียน", ""));
+            return;
+        }
+
+        devices.forEach(device => {
+            const label = `${device.device_id} (${device.status || "unknown"})`;
+            select.add(new Option(label, device.device_id));
+        });
+
+        // เลือกตัวเดียวกับ dashboard ถ้ายังมีอยู่ในรายการ
+        if (DEVICE_ID &&
+            devices.some(d => d.device_id === DEVICE_ID)) {
+            select.value = DEVICE_ID;
+        }
+    } catch (error) {
+        console.error("LOAD EXPORT DEVICES ERROR:", error);
+        select.replaceChildren();
+        select.add(new Option("โหลดรายชื่ออุปกรณ์ไม่สำเร็จ", ""));
+    }
+}
+
+function updateExportPeriodFields() {
+    const period = document.getElementById("exportPeriod").value;
+
+    document.getElementById("exportDayGroup").hidden =
+        period !== "day";
+
+    document.getElementById("exportMonthGroup").hidden =
+        period !== "month";
+
+    document.getElementById("exportYearGroup").hidden =
+        period !== "year";
+}
+
+function exportReport(format) {
+    const deviceId = document.getElementById("deviceSelect").value;
+    const period = document.getElementById("exportPeriod").value;
+
+    if (!deviceId) {
+        alert("กรุณาเลือก ESP32");
+        return;
+    }
+
+    const params = new URLSearchParams();
+    params.set("period", period);
+
+    if (period === "day") {
+        const date = document.getElementById("exportDate").value;
+        if (!date) {
+            alert("กรุณาเลือกวันที่");
+            return;
+        }
+        params.set("date", date);
+    }
+
+    if (period === "month") {
+        const month = document.getElementById("exportMonth").value;
+        if (!month) {
+            alert("กรุณาเลือกเดือน");
+            return;
+        }
+        params.set("month", month);
+    }
+
+    if (period === "year") {
+        const year = document.getElementById("exportYear").value;
+        if (!year || !/^\d{4}$/.test(year) ||
+            Number(year) < 2000 || Number(year) > 2100) {
+            alert("กรุณากรอกปีให้ถูกต้อง");
+            return;
+        }
+        params.set("year", year);
+    }
+
+    const url =
+        `/api/device/${encodeURIComponent(deviceId)}/export/${format}?${params}`;
+
+    window.location.href = url;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadExportDevices();
+
+    const periodSelect = document.getElementById("exportPeriod");
+    if (periodSelect) {
+        periodSelect.addEventListener("change", updateExportPeriodFields);
+        updateExportPeriodFields();
+    }
+});
