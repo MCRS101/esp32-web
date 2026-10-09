@@ -1486,23 +1486,7 @@ body.modal-open {
 }
 
 
-.graph-container {
-    width: 100%;
 
-    height: 420px;
-
-    min-height: 280px;
-
-    position: relative;
-}
-
-
-.graph-container canvas {
-    display: block;
-
-    width: 100% !important;
-    height: 100% !important;
-}
 
 
 /* =========================================================
@@ -2864,17 +2848,7 @@ body.feature-modal-open {
 }
 
 /* เปิดพื้นที่ให้เลื่อนกราฟแนวนอนได้ */
-.graph-container {
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-}
 
-.graph-container canvas {
-    display: block;
-    min-width: 900px;
-    height: 100% !important;
-}
 
 .graph-detail {
     margin: 16px 24px 24px;
@@ -2914,14 +2888,7 @@ body.feature-modal-open {
         font-size: 18px;
     }
 
-    .graph-container {
-        height: 350px;
-        padding: 10px;
-    }
 
-    .graph-container canvas {
-        min-width: 850px;
-    }
 
     .graph-detail {
         margin: 10px;
