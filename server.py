@@ -15,6 +15,8 @@ from database import get_connection, init_database
 
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment
+from openpyxl.chart import LineChart, Reference
+from openpyxl.chart.label import DataLabelList
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
@@ -27,6 +29,13 @@ from reportlab.platypus import (
 )
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.enums import TA_CENTER
+from datetime import datetime
+from flask import request, jsonify
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+from reportlab.platypus import Image as RLImage
 
 # =========================================================
 # FLASK
@@ -959,7 +968,73 @@ def export_excel(device_id):
                 column
             ].width = width
 
+        # =========================================
+        # CREATE GRAPH SHEET
+        # =========================================
 
+        graph_sheet = workbook.create_sheet("กราฟ")
+
+        graph_sheet["A1"] = "กราฟ PGA และ Pendulum"
+        graph_sheet["A1"].font = Font(
+            bold=True,
+            size=16
+        )
+
+        # เพิ่มหัวตารางสำหรับข้อมูลที่ใช้ทำกราฟ
+        graph_sheet.append([
+            "วันที่ / เวลา",
+            "PGA",
+            "Pendulum"
+        ])
+
+        # ดึงข้อมูลจากชีต Sensor Data
+        # A = วันที่ / เวลา
+        # E = PGA
+        # H = Pendulum
+        for row_index in range(2, sheet.max_row + 1):
+            graph_sheet.append([
+                sheet.cell(row=row_index, column=1).value,
+                sheet.cell(row=row_index, column=5).value or 0,
+                sheet.cell(row=row_index, column=8).value or 0
+            ])
+
+        # สร้างกราฟเส้น
+        chart = LineChart()
+        chart.title = "PGA และ Pendulum ตามเวลา"
+        chart.style = 13
+        chart.y_axis.title = "ค่า"
+        chart.x_axis.title = "วันที่ / เวลา"
+        chart.height = 12
+        chart.width = 24
+        chart.display_blanks = "gap"
+
+        # PGA และ Pendulum
+        data = Reference(
+            graph_sheet,
+            min_col=2,
+            max_col=3,
+            min_row=2,
+            max_row=graph_sheet.max_row
+        )
+
+        # ใช้เวลาเป็นแกน X
+        categories = Reference(
+            graph_sheet,
+            min_col=1,
+            min_row=3,
+            max_row=graph_sheet.max_row
+        )
+
+        chart.add_data(data, titles_from_data=True)
+        chart.set_categories(categories)
+
+        # วางกราฟในชีต
+        graph_sheet.add_chart(chart, "E2")
+
+        # ปรับความกว้างคอลัมน์
+        graph_sheet.column_dimensions["A"].width = 24
+        graph_sheet.column_dimensions["B"].width = 16
+        graph_sheet.column_dimensions["C"].width = 16
         # -----------------------------------------
         # CREATE FILE IN MEMORY
         # -----------------------------------------
@@ -1402,13 +1477,90 @@ def export_pdf(device_id):
         )
 
 
+
         elements.append(table)
-
-
-        # -----------------------------------------
-        # BUILD PDF
-        # -----------------------------------------
-
+        
+        # =================================================
+        # CREATE PGA + PENDULUM GRAPH FOR PDF
+        # =================================================
+        
+        if rows:
+            timestamps = [
+                row["timestamp"].strftime("%d/%m %H:%M")
+                if row["timestamp"] else "-"
+                for row in rows
+            ]
+        
+            pga_values = [
+                float(row["pga"] or 0)
+                for row in rows
+            ]
+        
+            pendulum_values = [
+                float(row["pendulum"] or 0)
+                for row in rows
+            ]
+        
+            fig, ax = plt.subplots(figsize=(11, 4.5))
+        
+            ax.plot(
+                range(len(rows)),
+                pga_values,
+                label="PGA",
+                marker=".",
+                linewidth=1.5
+            )
+        
+            ax.plot(
+                range(len(rows)),
+                pendulum_values,
+                label="Pendulum",
+                marker=".",
+                linewidth=1.5
+            )
+        
+            ax.set_title("PGA and Pendulum History")
+            ax.set_xlabel("Date / Time")
+            ax.set_ylabel("Value")
+            ax.grid(True, alpha=0.3)
+            ax.legend()
+        
+            # ลดจำนวนป้ายเวลา เพื่อไม่ให้ทับกัน
+            step = max(1, len(timestamps) // 10)
+        
+            ax.set_xticks(range(0, len(timestamps), step))
+            ax.set_xticklabels(
+                [timestamps[i] for i in range(0, len(timestamps), step)],
+                rotation=35,
+                ha="right"
+            )
+        
+            fig.tight_layout()
+        
+            # บันทึกกราฟไว้ในหน่วยความจำ
+            graph_buffer = BytesIO()
+            fig.savefig(
+                graph_buffer,
+                format="png",
+                dpi=160,
+                bbox_inches="tight"
+            )
+            plt.close(fig)
+            graph_buffer.seek(0)
+        
+            # ขึ้นหน้าใหม่ก่อนแสดงกราฟ
+            from reportlab.platypus import PageBreak
+        
+            elements.append(PageBreak())
+            elements.append(
+                Paragraph("PGA and Pendulum Graph", title_style)
+            )
+            elements.append(Spacer(1, 12))
+            elements.append(
+                RLImage(graph_buffer, width=750, height=300)
+            )
+        
+# BUILD PDF
         document.build(elements)
 
 
@@ -1470,8 +1622,7 @@ def export_pdf(device_id):
         conn.close()
         
 
-from datetime import datetime
-from flask import request, jsonify
+
 
 def get_export_rows(cursor, device_id):
     period = request.args.get("period", "all")
