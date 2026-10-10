@@ -17,9 +17,29 @@
         <span class="status-dot"></span>
         <span>Server Online</span>
     </div>
+    <div class="account-controls" hidden id="accountControls">
+        <span id="accountName"></span>
+        <button type="button" id="logoutButton" class="account-button">ออกจากระบบ</button>
+    </div>
 </header>
 
-<main class="container">
+<section class="auth-panel" id="authPanel" hidden>
+    <h1 id="authTitle">เข้าสู่ระบบ</h1>
+    <p>เข้าสู่ระบบเพื่อดูข้อมูลอุปกรณ์ของคุณ</p>
+    <form id="authForm" class="auth-form">
+        <label for="authUsername">ชื่อผู้ใช้หรืออีเมล</label>
+        <input id="authUsername" name="username" autocomplete="username" required maxlength="255">
+        <label id="authEmailLabel" for="authEmail" hidden>อีเมล</label>
+        <input id="authEmail" name="email" type="email" autocomplete="email" maxlength="255" hidden>
+        <label for="authPassword">รหัสผ่าน</label>
+        <input id="authPassword" name="password" type="password" autocomplete="current-password" required minlength="8">
+        <button type="submit" id="authSubmit">เข้าสู่ระบบ</button>
+        <div class="auth-message" id="authMessage" role="status" aria-live="polite"></div>
+    </form>
+    <button type="button" id="authToggle" class="auth-toggle">ยังไม่มีบัญชี? สมัครสมาชิก</button>
+</section>
+
+<main class="container" hidden>
 
 
 <!-- DEVICE BAR -->
@@ -39,7 +59,20 @@
         <div id="deviceStatus" class="device-offline">
             ● กำลังตรวจสอบ...
         </div>
+        <button type="button" id="showAddDevice" class="account-button">เพิ่มอุปกรณ์</button>
     </div>
+</section>
+
+<section class="add-device-panel" id="addDevicePanel" hidden>
+    <form id="addDeviceForm" class="add-device-form">
+        <label for="newDeviceId">Device ID</label>
+        <input id="newDeviceId" required maxlength="100" autocomplete="off">
+        <label for="newDeviceToken">Device token</label>
+        <input id="newDeviceToken" required maxlength="255" autocomplete="off">
+        <button type="submit">เชื่อมต่ออุปกรณ์</button>
+        <button type="button" id="cancelAddDevice" class="account-button">ยกเลิก</button>
+        <span id="addDeviceMessage" role="status" aria-live="polite"></span>
+    </form>
 </section>
 
 

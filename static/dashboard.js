@@ -1265,53 +1265,146 @@ function setOffline() {
    START
 ===================================================== */
 
-document.addEventListener(
-    "DOMContentLoaded",
-    function() {
+let dashboardStarted = false;
+let authMode = "login";
 
-        console.log(
-            "Dashboard starting..."
-        );
+async function startDashboard(user) {
+    document.getElementById("authPanel").hidden = true;
+    document.querySelector("main.container").hidden = false;
+    document.getElementById("accountControls").hidden = false;
+    document.getElementById("accountName").textContent = user.username;
 
-
-        /*
-         * สร้าง Chart
-         */
-
-        initChart();
-
-
-        /*
-         * เริ่ม animation graph
-         */
-
-        requestAnimationFrame(
-            smoothGraph
-        );
-
-
-        /*
-         * โหลด ESP32
-         */
-
-        loadDevice();
-
-
-        /*
-         * ดึงข้อมูลทุก 200ms
-         */
-
-        setInterval(
-            function() {
-
-                getLatest();
-
-            },
-            200
-        );
-
+    if (dashboardStarted) {
+        await loadDevice();
+        loadFeatureSettings();
+        loadExportDevices();
+        return;
     }
-);
+    dashboardStarted = true;
+
+    initChart();
+    requestAnimationFrame(smoothGraph);
+    await loadDevice();
+    loadFeatureSettings();
+    loadExportDevices();
+
+    setInterval(getLatest, 200);
+}
+
+function showAuth(message = "") {
+    document.querySelector("main.container").hidden = true;
+    document.getElementById("accountControls").hidden = true;
+    document.getElementById("authPanel").hidden = false;
+    document.getElementById("authMessage").textContent = message;
+}
+
+function setAuthMode(mode) {
+    authMode = mode;
+    const registering = mode === "register";
+    document.getElementById("authTitle").textContent = registering
+        ? "สมัครสมาชิก" : "เข้าสู่ระบบ";
+    document.getElementById("authSubmit").textContent = registering
+        ? "สมัครสมาชิก" : "เข้าสู่ระบบ";
+    document.getElementById("authEmailLabel").hidden = !registering;
+    document.getElementById("authEmail").hidden = !registering;
+    document.getElementById("authEmail").required = registering;
+    document.querySelector('label[for="authUsername"]').textContent = registering
+        ? "ชื่อผู้ใช้" : "ชื่อผู้ใช้หรืออีเมล";
+    document.getElementById("authUsername").placeholder = registering
+        ? "ชื่อผู้ใช้" : "ชื่อผู้ใช้หรืออีเมล";
+    document.getElementById("authPassword").autocomplete = registering
+        ? "new-password" : "current-password";
+    document.getElementById("authToggle").textContent = registering
+        ? "มีบัญชีแล้ว? เข้าสู่ระบบ" : "ยังไม่มีบัญชี? สมัครสมาชิก";
+    document.getElementById("authMessage").textContent = "";
+}
+
+async function checkAuthentication() {
+    try {
+        const response = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!response.ok) throw new Error("not authenticated");
+        const result = await response.json();
+        if (!result.success || !result.user) throw new Error("not authenticated");
+        await startDashboard(result.user);
+    } catch (_) {
+        showAuth();
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelector("main.container").hidden = true;
+    setAuthMode("login");
+    checkAuthentication();
+
+    document.getElementById("authToggle").addEventListener("click", () => {
+        setAuthMode(authMode === "login" ? "register" : "login");
+    });
+
+    document.getElementById("authForm").addEventListener("submit", async event => {
+        event.preventDefault();
+        const username = document.getElementById("authUsername").value.trim();
+        const password = document.getElementById("authPassword").value;
+        const payload = { username, password };
+        if (authMode === "register") {
+            payload.email = document.getElementById("authEmail").value.trim();
+        }
+
+        const response = await fetch(`/api/auth/${authMode}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) {
+            document.getElementById("authMessage").textContent =
+                result.message || "ดำเนินการไม่สำเร็จ";
+            return;
+        }
+
+        if (authMode === "register") {
+            setAuthMode("login");
+            document.getElementById("authMessage").textContent =
+                "สมัครสมาชิกสำเร็จ กรุณาเข้าสู่ระบบ";
+            document.getElementById("authUsername").value = username;
+            return;
+        }
+        await startDashboard(result.user);
+    });
+
+    document.getElementById("logoutButton").addEventListener("click", async () => {
+        await fetch("/api/auth/logout", { method: "POST" });
+        DEVICE_ID = null;
+        showAuth("ออกจากระบบแล้ว");
+    });
+
+    document.getElementById("showAddDevice").addEventListener("click", () => {
+        document.getElementById("addDevicePanel").hidden = false;
+        document.getElementById("newDeviceId").focus();
+    });
+    document.getElementById("cancelAddDevice").addEventListener("click", () => {
+        document.getElementById("addDevicePanel").hidden = true;
+    });
+    document.getElementById("addDeviceForm").addEventListener("submit", async event => {
+        event.preventDefault();
+        const message = document.getElementById("addDeviceMessage");
+        const response = await fetch("/api/user/devices", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                device_id: document.getElementById("newDeviceId").value.trim(),
+                device_token: document.getElementById("newDeviceToken").value.trim()
+            })
+        });
+        const result = await response.json().catch(() => ({}));
+        message.textContent = result.message || "เพิ่มอุปกรณ์ไม่สำเร็จ";
+        if (!response.ok || !result.success) return;
+
+        document.getElementById("addDeviceForm").reset();
+        document.getElementById("addDevicePanel").hidden = true;
+        await loadDevice();
+        loadExportDevices();
+    });
+});
 
 /* =====================================================
    OPEN ALL DATA
@@ -2401,7 +2494,6 @@ function loadFeatureSettings() {
     renderPhoneRows();
 }
 
-document.addEventListener("DOMContentLoaded", loadFeatureSettings);
 
 
 /* =========================================
@@ -2555,8 +2647,6 @@ function exportReport(format) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    loadExportDevices();
-
     const periodSelect = document.getElementById("exportPeriod");
     if (periodSelect) {
         periodSelect.addEventListener("change", updateExportPeriodFields);
