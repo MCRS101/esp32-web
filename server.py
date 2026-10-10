@@ -1505,6 +1505,7 @@ def export_excel(device_id):
 # EXPORT PDF
 # =========================================================
 
+
 @app.route(
     "/api/device/<device_id>/export/pdf",
     methods=["GET"]
@@ -1513,377 +1514,131 @@ def export_excel(device_id):
 @device_access_required
 def export_pdf(device_id):
 
-    # -----------------------------------------
-    # รับวันที่
-    # -----------------------------------------
-
+    period = request.args.get("period", "all")
     date_value = request.args.get("date")
-
+    month_value = request.args.get("month")
+    year_value = request.args.get("year")
 
     conn = get_connection()
-
-    cursor = conn.cursor(
-        dictionary=True
-    )
-
+    cursor = conn.cursor(dictionary=True)
 
     try:
+        # ดึงข้อมูลตามช่วงเวลาที่เลือก
+        rows, error = get_export_rows(cursor, device_id)
 
-        # -----------------------------------------
-        # ถ้ามีวันที่
-        # -----------------------------------------
+        if error:
+            message, status_code = error
+            return jsonify({
+                "success": False,
+                "message": message
+            }), status_code
 
-        if date_value:
-
-            cursor.execute(
-                """
-                SELECT
-                    timestamp,
-                    accel_x,
-                    accel_y,
-                    accel_z,
-                    pga,
-                    peak_pga,
-                    avg_pga,
-                    pendulum,
-                    level,
-                    direction,
-                    estimated_ml
-
-                FROM sensor_data
-
-                WHERE device_id = %s
-
-                AND DATE(timestamp) = %s
-
-                ORDER BY timestamp ASC
-                """,
-                (
-                    device_id,
-                    date_value
-                )
-            )
-
-
-        # -----------------------------------------
-        # ไม่มีวันที่
-        # = เอาทั้งหมด
-        # -----------------------------------------
-
-        else:
-
-            cursor.execute(
-                """
-                SELECT
-                    timestamp,
-                    accel_x,
-                    accel_y,
-                    accel_z,
-                    pga,
-                    peak_pga,
-                    avg_pga,
-                    pendulum,
-                    level,
-                    direction,
-                    estimated_ml
-
-                FROM sensor_data
-
-                WHERE device_id = %s
-
-                ORDER BY timestamp ASC
-                """,
-                (
-                    device_id,
-                )
-            )
-
-
-        rows = cursor.fetchall()
-
-
-        # =================================================
+        # =========================================
         # CREATE PDF
-        # =================================================
-
+        # =========================================
         output = BytesIO()
 
-
         document = SimpleDocTemplate(
-
             output,
-
             pagesize=landscape(A4),
-
             rightMargin=20,
-
             leftMargin=20,
-
             topMargin=20,
-
             bottomMargin=20
-
         )
 
-
         styles = getSampleStyleSheet()
-
-
         title_style = styles["Title"]
-
         title_style.alignment = TA_CENTER
-
 
         elements = []
 
-
-        # -----------------------------------------
+        # =========================================
         # TITLE
-        # -----------------------------------------
+        # =========================================
+        period_labels = {
+            "day": f"รายวัน - {date_value or ''}",
+            "month": f"รายเดือน - {month_value or ''}",
+            "year": f"รายปี - {year_value or ''}",
+            "all": "ข้อมูลทั้งหมด"
+        }
 
         title = (
-            "ESP32 Sensor Monitoring Report"
+            "ESP32 Sensor Monitoring Report - "
+            + period_labels[period]
         )
 
+        elements.append(Paragraph(title, title_style))
+        elements.append(Spacer(1, 15))
 
-        if date_value:
+        # =========================================
+        # TABLE HEADER
+        # =========================================
+        table_data = [[
+            "Date / Time",
+            "X (G)",
+            "Y (G)",
+            "Z (G)",
+            "PGA",
+            "Peak PGA",
+            "Avg PGA",
+            "Pendulum",
+            "Level",
+            "Direction",
+            "ML"
+        ]]
 
-            title += (
-                f" - {date_value}"
-            )
-
-
-        elements.append(
-
-            Paragraph(
-                title,
-                title_style
-            )
-
-        )
-
-
-        elements.append(
-            Spacer(1, 15)
-        )
-
-
-        # =================================================
-        # TABLE
-        # =================================================
-
-        table_data = [
-
-            [
-
-                "Date / Time",
-
-                "X (G)",
-
-                "Y (G)",
-
-                "Z (G)",
-
-                "PGA",
-
-                "Peak PGA",
-
-                "Avg PGA",
-
-                "Pendulum",
-
-                "Level",
-
-                "Direction",
-
-                "ML"
-
-            ]
-
-        ]
-
-
-        # -----------------------------------------
-        # DATA
-        # -----------------------------------------
-
+        # =========================================
+        # TABLE DATA
+        # =========================================
         for row in rows:
-
             timestamp = row["timestamp"]
 
-
             if timestamp:
-
                 timestamp = timestamp.strftime(
                     "%d/%m/%Y %H:%M:%S"
                 )
-
             else:
-
                 timestamp = "-"
 
-
             table_data.append([
-
                 timestamp,
-
-                f"{float(row['accel_x']):.4f}",
-
-                f"{float(row['accel_y']):.4f}",
-
-                f"{float(row['accel_z']):.4f}",
-
-                f"{float(row['pga']):.4f}",
-
-                f"{float(row['peak_pga']):.4f}",
-
-                f"{float(row['avg_pga']):.4f}",
-
-                f"{float(row['pendulum']):.2f}",
-
-                str(row["level"]),
-
-                str(row["direction"]),
-
-                f"{float(row['estimated_ml']):.2f}"
-
+                f"{float(row['accel_x'] or 0):.4f}",
+                f"{float(row['accel_y'] or 0):.4f}",
+                f"{float(row['accel_z'] or 0):.4f}",
+                f"{float(row['pga'] or 0):.4f}",
+                f"{float(row['peak_pga'] or 0):.4f}",
+                f"{float(row['avg_pga'] or 0):.4f}",
+                f"{float(row['pendulum'] or 0):.2f}",
+                str(row["level"] or "-"),
+                str(row["direction"] or "-"),
+                f"{float(row['estimated_ml'] or 0):.2f}"
             ])
 
+        table = Table(table_data, repeatRows=1)
 
-        # -----------------------------------------
-        # TABLE
-        # -----------------------------------------
-
-        table = Table(
-            table_data,
-            repeatRows=1
-        )
-
-
-        table.setStyle(
-
-            TableStyle([
-
-                (
-
-                    "BACKGROUND",
-
-                    (0, 0),
-
-                    (-1, 0),
-
-                    colors.HexColor(
-                        "#16304f"
-                    )
-
-                ),
-
-                (
-
-                    "TEXTCOLOR",
-
-                    (0, 0),
-
-                    (-1, 0),
-
-                    colors.white
-
-                ),
-
-                (
-
-                    "FONTNAME",
-
-                    (0, 0),
-
-                    (-1, 0),
-
-                    "Helvetica-Bold"
-
-                ),
-
-                (
-
-                    "ALIGN",
-
-                    (0, 0),
-
-                    (-1, -1),
-
-                    "CENTER"
-
-                ),
-
-                (
-
-                    "VALIGN",
-
-                    (0, 0),
-
-                    (-1, -1),
-
-                    "MIDDLE"
-
-                ),
-
-                (
-
-                    "GRID",
-
-                    (0, 0),
-
-                    (-1, -1),
-
-                    0.5,
-
-                    colors.grey
-
-                ),
-
-                (
-
-                    "FONTSIZE",
-
-                    (0, 0),
-
-                    (-1, -1),
-
-                    7
-
-                ),
-
-                (
-
-                    "ROWBACKGROUNDS",
-
-                    (0, 1),
-
-                    (-1, -1),
-
-                    [
-
-                        colors.white,
-
-                        colors.HexColor(
-                            "#f2f2f2"
-                        )
-
-                    ]
-
-                )
-
-            ])
-
-        )
-
-
+        table.setStyle(TableStyle([
+            (
+                "BACKGROUND", (0, 0), (-1, 0),
+                colors.HexColor("#16304f")
+            ),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("FONTSIZE", (0, 0), (-1, -1), 7),
+            (
+                "ROWBACKGROUNDS", (0, 1), (-1, -1),
+                [colors.white, colors.HexColor("#f2f2f2")]
+            )
+        ]))
 
         elements.append(table)
 
-        # =================================================
-        # CREATE PGA + PENDULUM GRAPH FOR PDF
-        # =================================================
-
+        # =========================================
+        # GRAPH: PGA + PENDULUM
+        # =========================================
         if rows:
             timestamps = [
                 row["timestamp"].strftime("%d/%m %H:%M")
@@ -1925,30 +1680,32 @@ def export_pdf(device_id):
             ax.grid(True, alpha=0.3)
             ax.legend()
 
-            # ลดจำนวนป้ายเวลา เพื่อไม่ให้ทับกัน
             step = max(1, len(timestamps) // 10)
+            tick_positions = list(
+                range(0, len(timestamps), step)
+            )
 
-            ax.set_xticks(range(0, len(timestamps), step))
+            ax.set_xticks(tick_positions)
             ax.set_xticklabels(
-                [timestamps[i] for i in range(0, len(timestamps), step)],
+                [timestamps[i] for i in tick_positions],
                 rotation=35,
                 ha="right"
             )
 
             fig.tight_layout()
 
-            # บันทึกกราฟไว้ในหน่วยความจำ
             graph_buffer = BytesIO()
+
             fig.savefig(
                 graph_buffer,
                 format="png",
                 dpi=160,
                 bbox_inches="tight"
             )
+
             plt.close(fig)
             graph_buffer.seek(0)
 
-            # ขึ้นหน้าใหม่ก่อนแสดงกราฟ
             from reportlab.platypus import PageBreak
 
             elements.append(PageBreak())
@@ -1957,70 +1714,67 @@ def export_pdf(device_id):
             )
             elements.append(Spacer(1, 12))
             elements.append(
-                RLImage(graph_buffer, width=750, height=300)
+                RLImage(
+                    graph_buffer,
+                    width=750,
+                    height=300
+                )
             )
 
-# BUILD PDF
+        else:
+            elements.append(Spacer(1, 12))
+            elements.append(
+                Paragraph(
+                    "ไม่มีข้อมูลในช่วงเวลาที่เลือก",
+                    styles["Normal"]
+                )
+            )
+
+        # =========================================
+        # BUILD PDF
+        # =========================================
         document.build(elements)
-
-
         output.seek(0)
 
-
-        # -----------------------------------------
+        # =========================================
         # FILE NAME
-        # -----------------------------------------
+        # =========================================
+        filename = f"{device_id}_sensor_data"
 
-        filename = (
-            f"{device_id}_sensor_data"
-        )
-
-
-        if date_value:
-
-            filename += (
-                f"_{date_value}"
-            )
-
+        if period == "day":
+            filename += f"_{date_value}"
+        elif period == "month":
+            filename += f"_{month_value}"
+        elif period == "year":
+            filename += f"_{year_value}"
+        else:
+            filename += "_all"
 
         filename += ".pdf"
 
-
-        # -----------------------------------------
+        # =========================================
         # DOWNLOAD
-        # -----------------------------------------
-
+        # =========================================
         return send_file(
-
             output,
-
             as_attachment=True,
-
             download_name=filename,
-
             mimetype="application/pdf"
-
         )
 
-
     except Exception as e:
-
         print("PDF ERROR:", e)
 
         return jsonify({
-
             "success": False,
-
             "message": "PDF export error"
-
         }), 500
 
-
     finally:
-
         cursor.close()
         conn.close()
-        
+
+
 
 
 
@@ -2046,7 +1800,10 @@ def get_export_rows(cursor, device_id):
         except ValueError:
             return None, ("รูปแบบวันที่ไม่ถูกต้อง", 400)
 
-        query += " AND timestamp >= %s AND timestamp < DATE_ADD(%s, INTERVAL 1 DAY)"
+        query += """
+            AND timestamp >= %s
+            AND timestamp < DATE_ADD(%s, INTERVAL 1 DAY)
+        """
         params.extend([date_value, date_value])
 
     elif period == "month":
@@ -2056,20 +1813,29 @@ def get_export_rows(cursor, device_id):
             return None, ("รูปแบบเดือนไม่ถูกต้อง", 400)
 
         query += """
-            AND timestamp >= STR_TO_DATE(CONCAT(%s, '-01'), '%%Y-%%m-%%d')
+            AND timestamp >= STR_TO_DATE(
+                CONCAT(%s, '-01'), '%%Y-%%m-%%d'
+            )
             AND timestamp < DATE_ADD(
-                STR_TO_DATE(CONCAT(%s, '-01'), '%%Y-%%m-%%d'),
+                STR_TO_DATE(
+                    CONCAT(%s, '-01'), '%%Y-%%m-%%d'
+                ),
                 INTERVAL 1 MONTH
             )
         """
         params.extend([month_value, month_value])
 
     elif period == "year":
-        if not year_value or not year_value.isdigit() or not 2000 <= int(year_value) <= 2100:
+        if (
+            not year_value
+            or not year_value.isdigit()
+            or not 2000 <= int(year_value) <= 2100
+        ):
             return None, ("รูปแบบปีไม่ถูกต้อง", 400)
 
         query += """
-            AND timestamp >= %s AND timestamp < %s
+            AND timestamp >= %s
+            AND timestamp < %s
         """
         params.extend([
             f"{year_value}-01-01",
@@ -2081,7 +1847,9 @@ def get_export_rows(cursor, device_id):
 
     query += " ORDER BY timestamp ASC"
     cursor.execute(query, tuple(params))
+
     return cursor.fetchall(), None
+
 # =========================================================
 # GET DEVICES
 # =========================================================
