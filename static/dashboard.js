@@ -182,6 +182,7 @@ async function loadDevice() {
     const select = document.getElementById("deviceSelect");
     const nameElement = document.getElementById("deviceName");
     const statusElement = document.getElementById("deviceStatus");
+    const removeButton = document.getElementById("removeDeviceButton");
 
     if (!select) {
         console.error("ไม่พบ deviceSelect ใน index.html");
@@ -212,6 +213,7 @@ async function loadDevice() {
 
         if (devices.length === 0) {
             DEVICE_ID = null;
+            if (removeButton) removeButton.disabled = true;
 
             select.innerHTML =
                 '<option value="">ไม่มี ESP32 ที่ลงทะเบียน</option>';
@@ -239,6 +241,7 @@ async function loadDevice() {
 
         if (select.options.length === 0) {
             DEVICE_ID = null;
+            if (removeButton) removeButton.disabled = true;
             select.innerHTML =
                 '<option value="">ข้อมูลอุปกรณ์ไม่ถูกต้อง</option>';
             nameElement.textContent = "ไม่พบอุปกรณ์";
@@ -261,6 +264,8 @@ async function loadDevice() {
 
     } catch (error) {
         console.error("LOAD DEVICES ERROR:", error);
+        DEVICE_ID = null;
+        if (removeButton) removeButton.disabled = true;
 
         select.innerHTML =
             '<option value="">โหลดอุปกรณ์ไม่สำเร็จ</option>';
@@ -280,6 +285,8 @@ async function selectDevice(deviceId) {
     if (!deviceId) return;
 
     DEVICE_ID = deviceId;
+    const removeButton = document.getElementById("removeDeviceButton");
+    if (removeButton) removeButton.disabled = false;
 
     const nameElement = document.getElementById("deviceName");
     const statusElement = document.getElementById("deviceStatus");
@@ -1378,31 +1385,87 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.getElementById("showAddDevice").addEventListener("click", () => {
-        document.getElementById("addDevicePanel").hidden = false;
+        document.getElementById("addDeviceMessage").textContent = "";
+        openFeatureModal("addDeviceModal");
         document.getElementById("newDeviceId").focus();
     });
     document.getElementById("cancelAddDevice").addEventListener("click", () => {
-        document.getElementById("addDevicePanel").hidden = true;
+        closeFeatureModal("addDeviceModal");
+    });
+    document.getElementById("closeAddDevice").addEventListener("click", () => {
+        closeFeatureModal("addDeviceModal");
     });
     document.getElementById("addDeviceForm").addEventListener("submit", async event => {
         event.preventDefault();
         const message = document.getElementById("addDeviceMessage");
-        const response = await fetch("/api/user/devices", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                device_id: document.getElementById("newDeviceId").value.trim(),
-                device_token: document.getElementById("newDeviceToken").value.trim()
-            })
-        });
-        const result = await response.json().catch(() => ({}));
-        message.textContent = result.message || "เพิ่มอุปกรณ์ไม่สำเร็จ";
-        if (!response.ok || !result.success) return;
+        const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        message.textContent = "กำลังตรวจสอบอุปกรณ์...";
 
-        document.getElementById("addDeviceForm").reset();
-        document.getElementById("addDevicePanel").hidden = true;
-        await loadDevice();
-        loadExportDevices();
+        try {
+            const response = await fetch("/api/user/devices", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    device_id: document.getElementById("newDeviceId").value.trim(),
+                    device_token: document.getElementById("newDeviceToken").value.trim()
+                })
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.success) {
+                if (response.status === 409) {
+                    message.textContent = result.message ||
+                        "อุปกรณ์นี้ไม่สามารถเพิ่มได้ เนื่องจากมีบัญชีอื่นผูกอุปกรณ์นี้อยู่แล้ว กรุณาลบออกจากบัญชีเดิมก่อน";
+                } else if (response.status === 403) {
+                    message.textContent = "Device ID หรือ token ไม่ถูกต้อง ตรวจสอบข้อมูลจาก ESP32 แล้วลองอีกครั้ง";
+                } else {
+                    message.textContent = result.message || "เพิ่มอุปกรณ์ไม่สำเร็จ กรุณาลองอีกครั้ง";
+                }
+                return;
+            }
+
+            document.getElementById("addDeviceForm").reset();
+            closeFeatureModal("addDeviceModal");
+            await loadDevice();
+            loadExportDevices();
+        } catch (error) {
+            console.error("ADD DEVICE ERROR:", error);
+            message.textContent = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองอีกครั้ง";
+        } finally {
+            submitButton.disabled = false;
+        }
+    });
+
+    document.getElementById("removeDeviceButton").addEventListener("click", async () => {
+        if (!DEVICE_ID) return;
+        const deviceId = DEVICE_ID;
+        const confirmed = window.confirm(
+            `นำ ${deviceId} ออกจากบัญชีนี้? ข้อมูลอุปกรณ์และประวัติ sensor_data จะไม่ถูกลบ`
+        );
+        if (!confirmed) return;
+
+        const button = document.getElementById("removeDeviceButton");
+        button.disabled = true;
+        try {
+            const response = await fetch(
+                `/api/user/devices/${encodeURIComponent(deviceId)}`,
+                { method: "DELETE" }
+            );
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.success) {
+                alert(result.message || "ลบอุปกรณ์ไม่สำเร็จ");
+                button.disabled = false;
+                return;
+            }
+
+            DEVICE_ID = null;
+            await loadDevice();
+            loadExportDevices();
+        } catch (error) {
+            console.error("REMOVE DEVICE ERROR:", error);
+            alert("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ลบอุปกรณ์ไม่สำเร็จ");
+            button.disabled = false;
+        }
     });
 });
 

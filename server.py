@@ -389,7 +389,10 @@ def add_user_device():
 
             return jsonify({
                 "success": False,
-                "message": "Device is already linked to another account"
+                "message": (
+                    "อุปกรณ์นี้ไม่สามารถเพิ่มได้ เนื่องจากมีบัญชีอื่น"
+                    "ผูกอุปกรณ์นี้อยู่แล้ว กรุณาลบอุปกรณ์ออกจากบัญชีเดิมก่อน"
+                )
             }), 409
 
         cursor.execute("""
@@ -412,6 +415,46 @@ def add_user_device():
         return jsonify({
             "success": False,
             "message": "Unable to add device"
+        }), 500
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# ลบการผูกอุปกรณ์ออกจากบัญชีปัจจุบัน โดยไม่ลบข้อมูลอุปกรณ์หรือ sensor_data
+@app.route("/api/user/devices/<device_id>", methods=["DELETE"])
+@login_required
+def remove_user_device(device_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            DELETE FROM user_devices
+            WHERE user_id = %s AND device_id = %s
+        """, (session["user_id"], device_id))
+
+        if cursor.rowcount == 0:
+            return jsonify({
+                "success": False,
+                "message": "ไม่พบอุปกรณ์นี้ในบัญชีของคุณ"
+            }), 404
+
+        conn.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "ลบอุปกรณ์ออกจากบัญชีแล้ว",
+            "device_id": device_id
+        })
+
+    except Exception:
+        conn.rollback()
+        app.logger.exception("REMOVE USER DEVICE ERROR")
+        return jsonify({
+            "success": False,
+            "message": "ลบอุปกรณ์ไม่สำเร็จ"
         }), 500
 
     finally:

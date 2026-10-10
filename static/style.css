@@ -66,8 +66,7 @@ button {
     background: #12345a;
 }
 
-.auth-panel,
-.add-device-panel {
+.auth-panel {
     width: min(460px, 94%);
     margin: 48px auto;
     padding: 24px;
@@ -114,19 +113,52 @@ button {
     background: transparent;
 }
 
-.add-device-panel {
-    width: min(900px, 94%);
-    margin: 0 auto 18px;
+.device-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .add-device-form {
-    grid-template-columns: auto minmax(120px, 1fr) auto minmax(120px, 1fr) auto auto;
-    align-items: center;
+    gap: 0;
+}
+
+.add-device-modal-content {
+    width: min(500px, 100%);
+}
+
+.add-device-modal-body {
+    display: grid;
+    gap: 10px;
+}
+
+.add-device-modal-body label {
+    color: var(--muted);
+}
+
+.device-form-message {
+    min-height: 1.5em;
+    margin: 4px 0 0;
+    color: #ffb4b4;
+    line-height: 1.5;
+}
+
+.device-delete-button {
+    border: 1px solid #733646;
+    border-radius: 8px;
+    padding: 9px 14px;
+    color: #ffd7df;
+    background: #421d2a;
+}
+
+.device-delete-button:disabled {
+    cursor: not-allowed;
+    opacity: .45;
 }
 
 @media (max-width: 800px) {
-    .add-device-form {
-        grid-template-columns: 1fr;
+    .device-actions {
+        width: 100%;
     }
 }
 

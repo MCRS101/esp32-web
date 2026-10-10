@@ -59,21 +59,39 @@
         <div id="deviceStatus" class="device-offline">
             ● กำลังตรวจสอบ...
         </div>
-        <button type="button" id="showAddDevice" class="account-button">เพิ่มอุปกรณ์</button>
+        <div class="device-actions">
+            <button type="button" id="showAddDevice" class="account-button">＋ เพิ่มอุปกรณ์</button>
+            <button type="button" id="removeDeviceButton" class="device-delete-button" disabled>ลบอุปกรณ์</button>
+        </div>
     </div>
 </section>
 
-<section class="add-device-panel" id="addDevicePanel" hidden>
-    <form id="addDeviceForm" class="add-device-form">
-        <label for="newDeviceId">Device ID</label>
-        <input id="newDeviceId" required maxlength="100" autocomplete="off">
-        <label for="newDeviceToken">Device token</label>
-        <input id="newDeviceToken" required maxlength="255" autocomplete="off">
-        <button type="submit">เชื่อมต่ออุปกรณ์</button>
-        <button type="button" id="cancelAddDevice" class="account-button">ยกเลิก</button>
-        <span id="addDeviceMessage" role="status" aria-live="polite"></span>
-    </form>
-</section>
+<div id="addDeviceModal" class="feature-modal" aria-hidden="true">
+    <div class="feature-modal-content add-device-modal-content" role="dialog"
+         aria-modal="true" aria-labelledby="addDeviceTitle">
+        <div class="feature-modal-header">
+            <div>
+                <h2 id="addDeviceTitle">เพิ่มอุปกรณ์ ESP32</h2>
+                <p>กรอก Device ID และ token ที่ได้จากการลงทะเบียน ESP32</p>
+            </div>
+            <button type="button" class="feature-modal-close" id="closeAddDevice"
+                    aria-label="ปิด">×</button>
+        </div>
+        <form id="addDeviceForm" class="add-device-form">
+            <div class="feature-modal-body add-device-modal-body">
+                <label for="newDeviceId">Device ID</label>
+                <input id="newDeviceId" required maxlength="100" autocomplete="off">
+                <label for="newDeviceToken">Device token</label>
+                <input id="newDeviceToken" required maxlength="255" autocomplete="off">
+                <p id="addDeviceMessage" class="device-form-message" role="status" aria-live="polite"></p>
+            </div>
+            <div class="feature-modal-footer">
+                <button type="button" id="cancelAddDevice" class="modal-cancel-btn">ยกเลิก</button>
+                <button type="submit" class="save-settings-btn">เชื่อมต่ออุปกรณ์</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 
 
