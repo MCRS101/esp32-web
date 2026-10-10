@@ -2006,22 +2006,25 @@ def get_export_rows(cursor, device_id):
 
     elif period == "month":
         try:
-            datetime.strptime(month_value or "", "%Y-%m")
+            month_start = datetime.strptime(month_value or "", "%Y-%m")
         except ValueError:
             return None, ("รูปแบบเดือนไม่ถูกต้อง", 400)
 
+        if month_start.month == 12:
+            next_month = month_start.replace(
+                year=month_start.year + 1,
+                month=1
+            )
+        else:
+            next_month = month_start.replace(
+                month=month_start.month + 1
+            )
+
         query += """
-            AND timestamp >= STR_TO_DATE(
-                CONCAT(%s, '-01'), '%%Y-%%m-%%d'
-            )
-            AND timestamp < DATE_ADD(
-                STR_TO_DATE(
-                    CONCAT(%s, '-01'), '%%Y-%%m-%%d'
-                ),
-                INTERVAL 1 MONTH
-            )
+            AND timestamp >= %s
+            AND timestamp < %s
         """
-        params.extend([month_value, month_value])
+        params.extend([month_start, next_month])
 
     elif period == "year":
         if (
