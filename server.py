@@ -1533,79 +1533,24 @@ def export_pdf(device_id):
 
 
 
+    
     try:
+        # ดึงข้อมูลตามช่วงเวลาที่เลือก
+        rows, error = get_export_rows(cursor, device_id)
 
-        # -----------------------------------------
-        # ถ้ามีวันที่
-        # -----------------------------------------
+        if error:
+            message, status_code = error
+            return jsonify({
+                "success": False,
+                "message": message
+            }), status_code
 
-        if date_value:
+        print("PERIOD:", period)
+        print("MONTH:", month_value)
+        print("ROWS:", len(rows))
 
-            cursor.execute(
-                """
-                SELECT
-                    timestamp,
-                    accel_x,
-                    accel_y,
-                    accel_z,
-                    pga,
-                    peak_pga,
-                    avg_pga,
-                    pendulum,
-                    level,
-                    direction,
-                    estimated_ml
+        
 
-                FROM sensor_data
-
-                WHERE device_id = %s
-
-                AND DATE(timestamp) = %s
-
-                ORDER BY timestamp ASC
-                """,
-                (
-                    device_id,
-                    date_value
-                )
-            )
-
-
-        # -----------------------------------------
-        # ไม่มีวันที่
-        # = เอาทั้งหมด
-        # -----------------------------------------
-
-        else:
-
-            cursor.execute(
-                """
-                SELECT
-                    timestamp,
-                    accel_x,
-                    accel_y,
-                    accel_z,
-                    pga,
-                    peak_pga,
-                    avg_pga,
-                    pendulum,
-                    level,
-                    direction,
-                    estimated_ml
-
-                FROM sensor_data
-
-                WHERE device_id = %s
-
-                ORDER BY timestamp ASC
-                """,
-                (
-                    device_id,
-                )
-            )
-
-
-        rows = cursor.fetchall()
 
 
         # =================================================
